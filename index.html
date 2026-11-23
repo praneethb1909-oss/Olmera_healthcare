@@ -3,24 +3,96 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <link rel="canonical" href="https://olmera.health/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0E4F4A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-    <title>Olmera - Care, quietly connected.</title>
-    <meta name="description" content="Olmera is a modern healthcare platform connecting patients, specialists, and diagnostics with quiet clarity and precision." />
-    <meta property="og:title" content="Olmera - Care, quietly connected." />
-    <meta property="og:description" content="Connect with trusted specialists, appointments, and medical records quietly and securely." />
+    
+    <title>Olmera – Book specialists and manage your medical records</title>
+    <meta name="description" content="Find trusted specialists, book appointments and keep your medical records secure in one place." />
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Olmera" />
+    <meta property="og:url" content="https://olmera.health/" />
+    <meta property="og:title" content="Olmera – Book specialists and manage your medical records" />
+    <meta property="og:description" content="Find trusted specialists, book appointments and keep your medical records secure in one place." />
+    <meta property="og:image" content="https://olmera.health/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Olmera Healthcare – Care, quietly connected." />
+
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Olmera - Care, quietly connected." />
-    <meta name="twitter:description" content="Connect with trusted specialists, appointments, and medical records quietly and securely." />
+    <meta name="twitter:url" content="https://olmera.health/" />
+    <meta name="twitter:title" content="Olmera – Book specialists and manage your medical records" />
+    <meta name="twitter:description" content="Find trusted specialists, book appointments and keep your medical records secure in one place." />
+    <meta name="twitter:image" content="https://olmera.health/og.png" />
+    <meta name="twitter:image:alt" content="Olmera Healthcare – Care, quietly connected." />
+
+    <!-- Google Fonts Preconnect & Stylesheet -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <!-- JSON-LD Structured Data: MedicalOrganization -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "MedicalOrganization",
+        "name": "Olmera Healthcare",
+        "alternateName": "Olmera Health Network",
+        "url": "https://olmera.health",
+        "logo": "https://olmera.health/favicon.svg",
+        "image": "https://olmera.health/og.png",
+        "description": "Olmera connects accredited hospitals, clinical specialists, diagnostic centers, and patients into a unified digital circle of care across Rajam, Visakhapatnam, and Srikakulam.",
+        "telephone": "+91-108",
+        "emergencyService": "24/7 Regional Emergency & Trauma Ambulance Dispatch (Dial 108)",
+        "address": {
+          "@type": "PostalAddress",
+          "addressRegion": "Andhra Pradesh",
+          "addressCountry": "IN"
+        },
+        "areaServed": [
+          { "@type": "City", "name": "Visakhapatnam" },
+          { "@type": "City", "name": "Rajam" },
+          { "@type": "City", "name": "Srikakulam" }
+        ],
+        "department": [
+          {
+            "@type": "MedicalOrganization",
+            "name": "GMR Varalakshmi Care Hospital",
+            "location": "Rajam, Andhra Pradesh",
+            "medicalSpecialty": ["Cardiology", "Trauma & Critical Care", "Internal Medicine"]
+          },
+          {
+            "@type": "MedicalOrganization",
+            "name": "Olmera Institute of Medical Sciences",
+            "location": "Visakhapatnam, Andhra Pradesh",
+            "medicalSpecialty": ["Neurology", "Pediatrics", "Cardiology", "Orthopedics"]
+          },
+          {
+            "@type": "MedicalOrganization",
+            "name": "Olmera Care Hospital",
+            "location": "Srikakulam, Andhra Pradesh",
+            "medicalSpecialty": ["Emergency Medicine", "Stroke Unit", "Diagnostics"]
+          },
+          {
+            "@type": "MedicalOrganization",
+            "name": "Olmera Specialty Institute",
+            "location": "Visakhapatnam, Andhra Pradesh",
+            "medicalSpecialty": ["Oncology", "Telemedicine", "Maternal Care"]
+          }
+        ]
+      }
+    </script>
+
+    <!-- Theme Initialization Script -->
     <script>
       (function() {
         try {
@@ -44,6 +116,67 @@
     </script>
   </head>
   <body>
+    <!-- Accessibility: Skip to Main Content Link -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- Fallback for users, crawlers, and previews with JavaScript disabled -->
+    <noscript>
+      <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 960px; margin: 0 auto; padding: 2rem 1rem; color: #10201E; background-color: #F6F2EA; line-height: 1.6;">
+        <header style="border-bottom: 2px solid #0E4F4A; padding-bottom: 1rem; margin-bottom: 1.5rem;">
+          <h1 style="color: #0E4F4A; margin: 0 0 0.5rem 0; font-size: 2rem;">Olmera Healthcare</h1>
+          <p style="font-size: 1.1rem; color: #53635F; margin: 0;"><strong>Care, quietly connected.</strong></p>
+        </header>
+
+        <div style="background-color: #FEE2E2; border-left: 4px solid #DC2626; padding: 1rem; margin-bottom: 2rem; border-radius: 4px;">
+          <p style="margin: 0; font-weight: bold; color: #991B1B;">In an emergency, call your local emergency number (Dial 108).</p>
+          <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: #7F1D1D;">For urgent paramedic ambulance dispatch, emergency trauma triage, or ICU admission, dial 108 toll-free 24/7.</p>
+        </div>
+
+        <main id="main-content">
+          <section style="margin-bottom: 2rem;">
+            <h2 style="color: #0E4F4A; font-size: 1.5rem;">About Olmera</h2>
+            <p>Olmera is an accredited regional healthcare platform connecting certified specialists, regional hospital networks, and patients across Rajam, Visakhapatnam, and Srikakulam in Andhra Pradesh. We bring calm clarity to outpatient consultations, electronic medical records, and digital prescriptions.</p>
+          </section>
+
+          <section style="margin-bottom: 2rem;">
+            <h2 style="color: #0E4F4A; font-size: 1.5rem;">Clinical Services</h2>
+            <ul style="padding-left: 1.25rem;">
+              <li><strong>Appointment Booking:</strong> Scheduled in-person consultations with certified specialists across 14 clinical departments.</li>
+              <li><strong>Telemedicine:</strong> High-fidelity video consultations for remote outpatient care and follow-ups.</li>
+              <li><strong>Medical Records Access:</strong> Centralized digital health vault with AES-256 encrypted diagnostic and lab reports.</li>
+              <li><strong>Digital Prescriptions:</strong> Verified digital prescriptions accessible to attending physicians and accredited pharmacies.</li>
+              <li><strong>Billing & Insurance:</strong> Transparent billing with itemized invoices and claim documentation.</li>
+              <li><strong>Emergency Dispatch:</strong> 24/7 ICU ambulance coordination with average triage response under 12 minutes.</li>
+              <li><strong>Lab & Diagnostics:</strong> Rapid imaging (MRI/CT), pathology tests, and verified biomarker reports.</li>
+              <li><strong>Hospital & Bed Management:</strong> Real-time ward, ICU, and oxygen bed availability tracking.</li>
+            </ul>
+          </section>
+
+          <section style="margin-bottom: 2rem;">
+            <h2 style="color: #0E4F4A; font-size: 1.5rem;">Accredited Regional Facilities</h2>
+            <ul style="padding-left: 1.25rem;">
+              <li><strong>GMR Varalakshmi Care Hospital (Rajam):</strong> 150 Beds • 24/7 Trauma & Critical Care Anchor Hub</li>
+              <li><strong>Olmera Institute of Medical Sciences (Visakhapatnam):</strong> 350 Beds • Level 1 Trauma & Cardiac ICU</li>
+              <li><strong>Olmera Care Hospital (Srikakulam):</strong> 200 Beds • Emergency & Stroke Unit</li>
+              <li><strong>Olmera Specialty Institute (Visakhapatnam):</strong> 300 Beds • Accredited Specialty Center</li>
+            </ul>
+          </section>
+
+          <section style="margin-bottom: 2rem;">
+            <h2 style="color: #0E4F4A; font-size: 1.5rem;">Contact & Inquiries</h2>
+            <p><strong>Clinical Inquiries:</strong> <a href="mailto:care@olmera.health" style="color: #0E4F4A;">care@olmera.health</a></p>
+            <p><strong>Emergency Ambulance:</strong> Dial 108 (Toll-Free, 24/7 across Andhra Pradesh)</p>
+            <p><strong>Regional Service Area:</strong> Rajam, Visakhapatnam, and Srikakulam districts, Andhra Pradesh, India.</p>
+          </section>
+        </main>
+
+        <footer style="border-top: 1px solid #E2DCCF; padding-top: 1rem; font-size: 0.85rem; color: #53635F;">
+          <p>© 2026 Olmera Health. All rights reserved. Care, quietly connected.</p>
+          <p>Note: JavaScript is required for interactive booking, biometric telemetry visualizers, and authenticated portal access.</p>
+        </footer>
+      </div>
+    </noscript>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

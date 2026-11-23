@@ -77,7 +77,7 @@ export function HospitalList({ onSelectHospital, onBack }: HospitalListProps) {
       )}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex-1 max-w-2xl">
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Find Healthcare</h2>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Find Healthcare & Hospitals</h1>
           <p className="text-slate-500 dark:text-slate-400 mb-6">Search and filter top-rated hospitals and medical centers.</p>
           
           <div className="flex flex-col sm:flex-row gap-4">
@@ -86,6 +86,7 @@ export function HospitalList({ onSelectHospital, onBack }: HospitalListProps) {
               <input 
                 type="text"
                 placeholder="Search hospital name or description..."
+                aria-label="Search hospital name or description"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="input-field pl-12 py-4 shadow-sm"
@@ -94,6 +95,7 @@ export function HospitalList({ onSelectHospital, onBack }: HospitalListProps) {
             <div className="sm:w-48">
               <select 
                 value={selectedCity}
+                aria-label="Filter hospitals by city"
                 onChange={(e) => setSelectedCity(e.target.value)}
                 className="input-field py-4 shadow-sm appearance-none cursor-pointer"
               >
@@ -124,8 +126,11 @@ export function HospitalList({ onSelectHospital, onBack }: HospitalListProps) {
             >
               <div className="w-full md:w-2/5 h-48 md:h-auto overflow-hidden relative">
                 <img
-                  src={hospital.image_url || `https://images.unsplash.com/photo-1587350859728-117692273fd1?auto=format&fit=crop&q=80&w=800`}
+                  src={hospital.image_url || '/images/hospital-institute-800.webp'}
                   alt={hospital.name}
+                  loading="lazy"
+                  width={800}
+                  height={500}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>

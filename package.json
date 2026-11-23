@@ -7,7 +7,9 @@
     "seed": "tsx src/scripts/seed_firebase.ts",
     "seed:auth": "tsx src/scripts/seed_auth.ts",
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && tsx scripts/prerender.ts",
+    "build:client": "vite build",
+    "prerender": "tsx scripts/prerender.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
@@ -24,6 +26,7 @@
     "@capacitor/keyboard": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
     "@supabase/supabase-js": "^2.98.0",
+    "@types/three": "^0.187.0",
     "dotenv": "^17.3.1",
     "firebase": "^12.19.0",
     "firebase-admin": "^13.7.0",
@@ -31,6 +34,7 @@
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "three": "^0.187.0",
     "tsx": "^4.21.0"
   },
   "devDependencies": {

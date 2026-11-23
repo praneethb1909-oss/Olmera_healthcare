@@ -78,13 +78,59 @@ function PlaceholderView({ title }: { title: string }) {
   );
 }
 
+function resolvePublicViewFromPath(): 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us' {
+  if (typeof window === 'undefined') return 'landing';
+  const path = window.location.pathname.toLowerCase();
+  if (path === '/services' || path.startsWith('/services/')) return 'services';
+  if (path === '/doctors' || path.startsWith('/doctors/')) return 'doctors';
+  if (path === '/hospitals' || path.startsWith('/hospitals/')) return 'hospitals';
+  if (path === '/about-us' || path === '/about' || path.startsWith('/about')) return 'about-us';
+  if (path === '/contact-us' || path === '/contact' || path.startsWith('/contact')) return 'contact-us';
+  if (path === '/privacy') return 'about-us';
+  if (path === '/auth' || path === '/login' || path === '/admin-login') return 'auth';
+  return 'landing';
+}
+
+function getPathForPublicView(view: 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us'): string {
+  switch (view) {
+    case 'services': return '/services';
+    case 'doctors': return '/doctors';
+    case 'hospitals': return '/hospitals';
+    case 'about-us': return '/about-us';
+    case 'contact-us': return '/contact-us';
+    case 'auth': return '/auth';
+    case 'landing':
+    default: return '/';
+  }
+}
+
 function AppContent() {
   const { user, loading, role, loginAsDemo, signOut, signInHospitalAdmin } = useAuth();
-  const [publicView, setPublicView] = useState<'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us'>('landing');
+  const [publicView, setPublicView] = useState<'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us'>(resolvePublicViewFromPath);
   const [authRole, setAuthRole] = useState<'patient' | 'doctor' | 'admin'>('patient');
   const [viewState, setViewState] = useState<ViewState>({ 
     current: 'dashboard' 
   });
+
+  const navigateToPublicView = useCallback((view: 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us', updateHistory = true) => {
+    setPublicView(view);
+    if (updateHistory && typeof window !== 'undefined') {
+      const targetPath = getPathForPublicView(view);
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ view }, '', targetPath);
+      }
+    }
+  }, []);
+
+  // Sync with browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const resolved = resolvePublicViewFromPath();
+      setPublicView(resolved);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const currentViewRef = useRef(viewState.current);
   useEffect(() => {
@@ -168,36 +214,42 @@ function AppContent() {
     if (publicView === 'auth') {
       if (authRole === 'admin') {
         return (
-          <HospitalAdminLogin 
-            onSuccess={(adminProfile, sessionToken) => {
-              signInHospitalAdmin(adminProfile, sessionToken);
-              setPublicView('landing');
-              setViewState({ current: 'admin-portal' });
-            }}
-            onBackToPublic={() => setPublicView('landing')}
-          />
+          <main id="main-content">
+            <HospitalAdminLogin 
+              onSuccess={(adminProfile, sessionToken) => {
+                signInHospitalAdmin(adminProfile, sessionToken);
+                navigateToPublicView('landing');
+                setViewState({ current: 'admin-portal' });
+              }}
+              onBackToPublic={() => navigateToPublicView('landing')}
+            />
+          </main>
         );
       }
 
       return (
-        <Auth 
-          onBack={() => setPublicView('landing')} 
-          initialRole={authRole} 
-          onSwitchToHospitalAdmin={() => setAuthRole('admin')}
-        />
+        <main id="main-content">
+          <Auth 
+            onBack={() => navigateToPublicView('landing')} 
+            initialRole={authRole} 
+            onSwitchToHospitalAdmin={() => setAuthRole('admin')}
+          />
+        </main>
       );
     }
 
     if (publicView === 'doctors') {
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
-          <FindDoctorPage 
-            onBack={() => setPublicView('landing')} 
-            onSelectDoctor={(doctorId) => {
-              setAuthRole('patient');
-              setPublicView('auth');
-            }}
-          />
+          <main id="main-content">
+            <FindDoctorPage 
+              onBack={() => navigateToPublicView('landing')} 
+              onSelectDoctor={(_doctorId) => {
+                setAuthRole('patient');
+                navigateToPublicView('auth');
+              }}
+            />
+          </main>
         </div>
       );
     }
@@ -205,13 +257,15 @@ function AppContent() {
     if (publicView === 'hospitals') {
       return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
-          <HospitalList 
-            onBack={() => setPublicView('landing')} 
-            onSelectHospital={(hospitalId) => {
-              setAuthRole('patient');
-              setPublicView('auth');
-            }}
-          />
+          <main id="main-content">
+            <HospitalList 
+              onBack={() => navigateToPublicView('landing')} 
+              onSelectHospital={(_hospitalId) => {
+                setAuthRole('patient');
+                navigateToPublicView('auth');
+              }}
+            />
+          </main>
         </div>
       );
     }
@@ -221,12 +275,14 @@ function AppContent() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
           <div className="max-w-7xl mx-auto">
             <button
-              onClick={() => setPublicView('landing')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+              onClick={() => navigateToPublicView('landing')}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]"
             >
               ← Back to Homepage
             </button>
-            <ServicesPage />
+            <main id="main-content">
+              <ServicesPage />
+            </main>
           </div>
         </div>
       );
@@ -237,12 +293,14 @@ function AppContent() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
           <div className="max-w-7xl mx-auto">
             <button
-              onClick={() => setPublicView('landing')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+              onClick={() => navigateToPublicView('landing')}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]"
             >
               ← Back to Homepage
             </button>
-            <AboutUs />
+            <main id="main-content">
+              <AboutUs />
+            </main>
           </div>
         </div>
       );
@@ -253,12 +311,14 @@ function AppContent() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
           <div className="max-w-7xl mx-auto">
             <button
-              onClick={() => setPublicView('landing')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+              onClick={() => navigateToPublicView('landing')}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]"
             >
               ← Back to Homepage
             </button>
-            <ContactUs />
+            <main id="main-content">
+              <ContactUs />
+            </main>
           </div>
         </div>
       );
@@ -268,14 +328,14 @@ function AppContent() {
       <LandingPage 
         onOpenAuth={(selectedRole) => {
           if (selectedRole) setAuthRole(selectedRole);
-          setPublicView('auth');
+          navigateToPublicView('auth');
         }}
         onNavigateToView={(view) => {
           if (['doctors', 'hospitals', 'services', 'about-us', 'contact-us'].includes(view)) {
-            setPublicView(view as any);
+            navigateToPublicView(view as any);
           } else {
             setAuthRole('patient');
-            setPublicView('auth');
+            navigateToPublicView('auth');
           }
         }}
       />

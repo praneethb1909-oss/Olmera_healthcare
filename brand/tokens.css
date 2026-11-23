@@ -1,34 +1,48 @@
 /* Olmera design tokens. Single source of truth: never hard-code colours elsewhere. */
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap");
 
 :root, html:not(.dark) {
   --brand-name: "Olmera";
-  --color-primary: #0E4F4A;      /* Deep Fern: buttons, headers, icon tile */
+  --color-primary: #0E4F4A;      /* Deep Fern: brand teal */
   --color-primary-hover: #093834;
-  --color-accent: #FF7A59;       /* Signal Coral: one highlight per screen */
-  --color-accent-hover: #E86443;
-  --color-mist: #CFE3DD;         /* secondary surfaces, charts */
+  --color-accent: #E0457B;       /* Rose accent */
+  --color-accent-hover: #c93568;
+  --color-coral: #FF7A59;        /* Warm coral */
+  --color-neon-cyan: #22E3C8;    /* Neon cyan */
+  --color-violet: #6D5BD0;       /* Clinical violet */
+  --color-violet-glow: #7B5CFF;  /* High-fidelity violet glow */
+  --color-ocean-blue: #0E8FB0;   /* Ocean blue */
+  --color-rose: #E0457B;         /* Rose accent */
+  --color-rose-glow: #FF5C8A;    /* Rose glow */
+  --color-mist: #D3EEF0;         /* Soft clinical mist */
   --color-bg: #F6F2EA;           /* Parchment page background */
   --color-surface: #FFFFFF;
   --color-surface-subtle: #F0ECE2;
-  --color-ink: #10201E;          /* text */
-  --color-muted: #5B6B67;
+  --color-ink: #10201E;          /* text (WCAG AA compliant) */
+  --color-muted: #53635F;        /* text-muted (WCAG AA compliant against #FFFFFF and #F6F2EA) */
   --color-line: #E2DCCF;
+  --color-monitor-bg: #07131A;   /* Clinical monitor dark canvas */
+  --color-monitor-surface: #0D1E24;
+  --color-monitor-line: #1B363F;
   --font-display: "Fraunces", Georgia, serif;
-  --font-ui: "Instrument Sans", system-ui, sans-serif;
+  --font-ui: "Figtree", "Instrument Sans", system-ui, sans-serif;
   --radius-card: 18px;
   --radius-btn: 12px;
 }
 
 html.dark, body.dark {
-  --color-bg: #0C1514;
-  --color-surface: #13211F;
-  --color-surface-subtle: #192C29;
+  --color-bg: #07131A;
+  --color-surface: #0D1E24;
+  --color-surface-subtle: #13272E;
   --color-ink: #EDE9DF;
   --color-muted: #9DB0AB;
-  --color-line: #233735;
-  --color-primary: #1E7F76;
-  --color-primary-hover: #166B63;
+  --color-line: #1B363F;
+  --color-primary: #0E8FB0;
+  --color-primary-hover: #0A738E;
+  --color-neon-cyan: #22E3C8;
+  --color-violet: #7B5CFF;
+  --color-rose: #FF5C8A;
+  --color-mist: #17373C;
 }
 
 body {

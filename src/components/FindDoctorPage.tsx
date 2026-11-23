@@ -91,6 +91,7 @@ export function FindDoctorPage({ onBack, onSelectDoctor }: FindDoctorPageProps =
               <input 
                 type="text" 
                 placeholder="Search by name or specialty..." 
+                aria-label="Search doctors by name or specialty"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="input-field pl-12 py-4 shadow-sm"
@@ -99,6 +100,7 @@ export function FindDoctorPage({ onBack, onSelectDoctor }: FindDoctorPageProps =
             <div className="sm:w-56">
               <select 
                 value={selectedSpecialty}
+                aria-label="Filter doctors by specialty"
                 onChange={(e) => setSelectedSpecialty(e.target.value)}
                 className="input-field py-4 shadow-sm appearance-none cursor-pointer"
               >
