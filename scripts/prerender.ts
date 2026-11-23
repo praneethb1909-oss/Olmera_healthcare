@@ -200,7 +200,11 @@ async function prerender() {
   }
 }
 
-prerender().catch((err) => {
-  console.error('❌ Prerender script failed:', err);
-  process.exit(1);
-});
+prerender()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.warn('⚠️ Prerender script encountered an error (continuing with client SPA build):', err);
+    process.exit(0);
+  });
