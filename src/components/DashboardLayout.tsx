@@ -46,7 +46,7 @@ export function DashboardLayout({ children, currentView, setView, role, user }: 
         className={`flex-1 flex flex-col transition-all duration-300 w-full min-h-screen ${isSidebarOpen ? 'lg:pl-64' : 'lg:pl-20'
           }`}
       >
-        <Header role={role} user={user} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+        <Header role={role} user={user} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} setView={setView} />
         <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pb-24 md:pb-8">
           <div className="w-full max-w-[1536px] mx-auto">
             {children}

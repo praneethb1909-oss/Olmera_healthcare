@@ -18,8 +18,7 @@ export function Footer({ setView }: FooterProps) {
 
   const pageLinks = [
     { label: 'About Olmera', view: 'about-us' },
-    { label: 'Services', view: 'services' },
-    { label: 'Contact', view: 'contact-us' },
+    { label: 'Services & Contact', view: 'services-contact' },
   ];
 
   return (

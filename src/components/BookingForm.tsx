@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { db } from '../lib/firebase';
 import { doc, getDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Clock, ArrowLeft, CheckCircle, User, Video } from 'lucide-react';
+import { Calendar, Clock, ArrowLeft, CheckCircle, User, Video, Users, MapPin, Navigation } from 'lucide-react';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { familyService, FamilyMember } from '../services/clinical/familyService';
+import { locationService } from '../services/location/locationService';
+import { facilitiesService } from '../services/location/facilitiesService';
 
 interface Doctor {
   id: string;
@@ -35,6 +38,21 @@ export function BookingForm({ doctorId, onBack, onSuccess }: BookingFormProps) {
   const [dayFullyBooked, setDayFullyBooked] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Family Member proxy booking
+  const [bookingFor, setBookingFor] = useState<'self' | 'family'>('self');
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<string>('');
+
+  useEffect(() => {
+    if (user) {
+      const list = familyService.getFamilyMembers(user.uid);
+      setFamilyMembers(list);
+      if (list.length > 0) {
+        setSelectedFamilyMemberId(list[0].id);
+      }
+    }
+  }, [user]);
 
   const loadDoctor = useCallback(async () => {
     try {
@@ -137,6 +155,10 @@ export function BookingForm({ doctorId, onBack, onSuccess }: BookingFormProps) {
         throw new Error('This time slot has just been booked. Please choose another one.');
       }
 
+      const selectedMember = bookingFor === 'family' 
+        ? familyMembers.find(m => m.id === selectedFamilyMemberId)
+        : null;
+
       await addDoc(collection(db, 'appointments'), {
         patient_id: effectiveUserId,
         doctor_id: doctorId,
@@ -147,6 +169,10 @@ export function BookingForm({ doctorId, onBack, onSuccess }: BookingFormProps) {
         type: isEmergency ? 'emergency' : appointmentType,
         notes: notes || null,
         status: 'pending',
+        booking_for: bookingFor,
+        family_member_id: selectedMember?.id || null,
+        family_member_name: selectedMember?.fullName || null,
+        family_member_relationship: selectedMember?.relationship || null,
         created_at: new Date().toISOString()
       });
 
@@ -220,6 +246,17 @@ export function BookingForm({ doctorId, onBack, onSuccess }: BookingFormProps) {
                   <span className="text-slate-500 dark:text-slate-300">Duration</span>
                   <span className="font-bold text-slate-900 dark:text-white">30 Mins</span>
                 </div>
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-left">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Facility Campus</span>
+                  <p className="text-xs font-semibold text-slate-800 dark:text-white flex items-center gap-1">
+                    <MapPin size={12} className="text-emerald-600 shrink-0" />
+                    <span>Olmera Regional Care Hospital</span>
+                  </p>
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1 font-medium">
+                    <Navigation size={10} />
+                    <span>GPS Navigation & Geofence Check-In Active</span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -234,6 +271,63 @@ export function BookingForm({ doctorId, onBack, onSuccess }: BookingFormProps) {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Patient / Family Member Selector */}
+              <div className="space-y-2 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users size={14} className="text-blue-600" />
+                  Who is this consultation for?
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="bookingFor"
+                      value="self"
+                      checked={bookingFor === 'self'}
+                      onChange={() => setBookingFor('self')}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>For Myself</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="radio"
+                      name="bookingFor"
+                      value="family"
+                      checked={bookingFor === 'family'}
+                      onChange={() => setBookingFor('family')}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>For a Family Member / Dependent</span>
+                  </label>
+                </div>
+
+                {bookingFor === 'family' && (
+                  <div className="pt-2 animate-fadeIn">
+                    {familyMembers.length > 0 ? (
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-500 uppercase">Select Family Member</label>
+                        <select
+                          value={selectedFamilyMemberId}
+                          onChange={(e) => setSelectedFamilyMemberId(e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold"
+                        >
+                          {familyMembers.map(m => (
+                            <option key={m.id} value={m.id}>
+                              {m.fullName} ({m.relationship}, {m.age} yrs)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800">
+                        No family members registered yet. You can add family profiles in your Health Dashboard.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Appointment Date</label>

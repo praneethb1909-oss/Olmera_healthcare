@@ -398,10 +398,10 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
               About
             </button>
             <button 
-              onClick={() => onNavigateToView ? onNavigateToView('contact-us') : onOpenAuth('patient')}
+              onClick={() => onNavigateToView ? onNavigateToView('services-contact') : onOpenAuth('patient')}
               className="hover:text-[var(--color-primary)] transition-colors cursor-pointer"
             >
-              Contact
+              Services & Contact
             </button>
           </nav>
 
@@ -474,11 +474,11 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
               <button 
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  if (onNavigateToView) { onNavigateToView('contact-us'); } else { onOpenAuth('patient'); }
+                  if (onNavigateToView) { onNavigateToView('services-contact'); } else { onOpenAuth('patient'); }
                 }}
                 className="p-2.5 text-left hover:bg-[var(--color-surface-subtle)] rounded-lg"
               >
-                Contact & Helplines
+                Services & Contact
               </button>
             </nav>
 

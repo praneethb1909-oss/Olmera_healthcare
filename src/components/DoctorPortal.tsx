@@ -10,6 +10,7 @@ import {
 import { Chat } from './Chat';
 import { MedicalBackground } from './MedicalBackground';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { DoctorHierarchyConsole } from './clinical/DoctorHierarchyConsole';
 
 interface Appointment {
   id: string;
@@ -365,6 +366,12 @@ export function DoctorPortal() {
                 )}
              </div>
           </div>
+
+          {/* Junior-Senior-Specialist Clinical Workflow Console */}
+          <DoctorHierarchyConsole 
+            currentDoctorId={doctorInfo?.id} 
+            doctorRole="senior"
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="card p-6 bg-white border-none shadow-xl shadow-slate-100 dark:shadow-none border-b-4 border-b-blue-500 group cursor-pointer hover:-translate-y-1 transition-all">

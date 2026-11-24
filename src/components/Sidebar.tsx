@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Calendar, Users, Building2, Settings, ChevronLeft, ChevronRight,
   LogOut, Bed, TestTube2, Pill, Receipt, Package, BarChart3, UserCog, FileText,
-  ClipboardList, Bell, CircleUser as UserCircle, Search, MessageSquare, Info, Phone, Layers,
-  Sun, Moon, UserCheck, Cpu
+  ClipboardList, Bell, CircleUser as UserCircle, Search, MessageSquare, Info, Layers,
+  Sun, Moon, UserCheck, Cpu, Compass
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { OlmeraWordmark } from './brand/OlmeraWordmark';
@@ -62,8 +62,7 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'admin-reports', label: 'Analytics', icon: BarChart3 },
       { id: 'admin-users', label: 'Roles & Staff', icon: UserCog },
       { id: 'about-us', label: 'About Olmera', icon: Info },
-      { id: 'services', label: 'Services', icon: Layers },
-      { id: 'contact-us', label: 'Contact', icon: Phone },
+      { id: 'services-contact', label: 'Services & Contact', icon: Layers },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
     doctor: [
@@ -76,12 +75,12 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'doctor-notifications', label: 'Notifications', icon: Bell },
       { id: 'doctor-profile', label: 'Profile', icon: UserCircle },
       { id: 'about-us', label: 'About Olmera', icon: Info },
-      { id: 'services', label: 'Services', icon: Layers },
-      { id: 'contact-us', label: 'Contact', icon: Phone },
+      { id: 'services-contact', label: 'Services & Contact', icon: Layers },
       { id: 'settings', label: 'Settings', icon: Settings },
     ],
     patient: [
       { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+      { id: 'patient-location-map', label: 'Healthcare Map & GPS', icon: Compass },
       { id: 'hospitals', label: 'Book Consultation', icon: Calendar },
       { id: 'patient-appointments', label: 'My Consultations', icon: ClipboardList },
       { id: 'patient-medical-reports', label: 'Lab Reports', icon: FileText },
@@ -92,8 +91,7 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
       { id: 'patient-support', label: 'Care Concierge', icon: MessageSquare },
       { id: 'patient-profile', label: 'My Profile', icon: UserCircle },
       { id: 'about-us', label: 'About Olmera', icon: Info },
-      { id: 'services', label: 'Services', icon: Layers },
-      { id: 'contact-us', label: 'Contact', icon: Phone },
+      { id: 'services-contact', label: 'Services & Contact', icon: Layers },
       { id: 'settings', label: 'Settings', icon: Settings },
     ]
   };

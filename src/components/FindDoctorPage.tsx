@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Star, Calendar, Clock, ChevronRight, User, Filter, Building2, IndianRupee, Award, Briefcase } from 'lucide-react';
+import { Search, Star, Calendar, Clock, ChevronRight, User, Filter, Building2, IndianRupee, Award, Briefcase, MapPin } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
@@ -148,6 +148,10 @@ export function FindDoctorPage({ onBack, onSelectDoctor }: FindDoctorPageProps =
                       <div>
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{doctor.name}</h3>
                         <p className="text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">{doctor.specialization || 'General Specialist'}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1 font-medium">
+                          <MapPin size={11} className="text-emerald-600 shrink-0" />
+                          <span>Olmera Regional Network Hub • Rajam / Vizag Facility</span>
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Consultation Fee</p>

@@ -11,6 +11,7 @@ import {
 import { MedicalBackground } from './MedicalBackground';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 import { maskEmail, maskPhone } from '../utils/masking';
+import { LongitudinalProgressChart } from './clinical/LongitudinalProgressChart';
 import { 
   generatePatientPreConsultSummary, 
   generateClinicalDocument, 
@@ -449,6 +450,11 @@ export function DoctorPatients() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Longitudinal Patient Progress Between Visits */}
+              <div className="p-4 bg-[var(--color-surface-subtle)] border border-[var(--color-line)] rounded-2xl">
+                <LongitudinalProgressChart patientName={activeSummary.patientName} />
               </div>
 
               {/* Chronological Medical Timeline */}

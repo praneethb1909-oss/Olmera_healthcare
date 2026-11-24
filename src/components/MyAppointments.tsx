@@ -5,11 +5,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   Calendar, Clock, User, Phone, CheckCircle2, XCircle, 
   Search, ChevronRight, Filter, MoreVertical, FileText, 
-  MessageCircle, AlertCircle, MapPin
+  MessageCircle, AlertCircle, MapPin, Navigation
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 import { maskPhone } from '../utils/masking';
+import { AppointmentNavigationModal } from './location/AppointmentNavigationModal';
 
 interface Appointment {
   id: string;
@@ -36,6 +37,7 @@ export function MyAppointments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [error, setError] = useState<string | null>(null);
+  const [activeNavAppointment, setActiveNavAppointment] = useState<Appointment | null>(null);
 
   const loadAppointments = useCallback(async () => {
     if (!user) return;
@@ -228,10 +230,48 @@ export function MyAppointments() {
                       </div>
                       
                       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Chief Complaint / Notes</p>
-                        <p className="text-sm text-slate-600 dark:text-slate-300 font-medium italic">
-                          "{apt.notes || 'No specific notes provided for this consultation.'}"
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chief Complaint / Notes</p>
+                          {(apt as any).family_member_name && (
+                            <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 text-[10px] font-bold">
+                              For: {(apt as any).family_member_name} ({(apt as any).family_member_relationship})
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 font-medium italic mb-3">
+                          "{apt.notes || 'Routine clinical outpatient consultation.'}"
                         </p>
+
+                        {/* Queue & Waiting Time Management */}
+                        <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-3">
+                            <span className="px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-lg font-bold">
+                              Queue Token #0{((apt.id.charCodeAt(apt.id.length - 1) || 3) % 9) + 1}
+                            </span>
+                            <span className="text-slate-500 flex items-center gap-1 text-[11px]">
+                              <Clock size={12} className="text-blue-500" /> 
+                              Est. Waiting Time: ~{10 + ((apt.id.charCodeAt(0) || 4) % 15)} mins
+                            </span>
+                          </div>
+
+                          {role === 'patient' && apt.status !== 'completed' && apt.status !== 'cancelled' && (
+                            <div className="flex items-center gap-2">
+                              {(apt as any).checked_in ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 rounded-xl font-bold text-xs border border-emerald-200 dark:border-emerald-800">
+                                  <CheckCircle2 size={13} /> Checked In at Hospital
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => setActiveNavAppointment(apt)}
+                                  className="px-3 py-1.5 bg-[var(--color-primary)] hover:bg-[#156E67] text-white rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                                >
+                                  <Navigation size={12} />
+                                  <span>Directions & Campus Check-In</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -273,6 +313,25 @@ export function MyAppointments() {
             </div>
           ))}
         </div>
+      )}
+
+      {activeNavAppointment && (
+        <AppointmentNavigationModal
+          isOpen={!!activeNavAppointment}
+          onClose={() => setActiveNavAppointment(null)}
+          appointmentId={activeNavAppointment.id}
+          patientId={activeNavAppointment.patient_id}
+          doctorName={activeNavAppointment.patient?.full_name || 'Specialist'}
+          hospitalName={activeNavAppointment.hospital?.name || 'Olmera Care Center'}
+          hospitalId={activeNavAppointment.hospital_id}
+          appointmentDate={activeNavAppointment.appointment_date}
+          appointmentTime={activeNavAppointment.appointment_time}
+          onCheckInCompleted={(result) => {
+            if (result.checkInStatus === 'checked_in' || result.checkInStatus === 'manual_override') {
+              updateStatus(activeNavAppointment.id, 'checked_in' as any);
+            }
+          }}
+        />
       )}
     </div>
   );

@@ -10,6 +10,7 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import logoMarkLight from '../../brand/assets/logo-mark-light-on-dark.svg';
 import logoMarkDark from '../../brand/assets/logo-mark-dark-on-light.svg';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { doctorManagementService } from '../services/clinical/doctorManagementService';
 
 interface Hospital {
   id: string;
@@ -87,6 +88,22 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
     }
 
     try {
+      // Check individual Senior / Junior Doctor login credentials when signing in as doctor
+      if (isLogin && role === 'doctor') {
+        const registeredDoc = doctorManagementService.getDoctorByEmail(email);
+        if (registeredDoc) {
+          const authRes = doctorManagementService.authenticateDoctorLogin(email, password);
+          if (!authRes.success || !authRes.doctor) {
+            setError(authRes.error || 'Doctor authentication failed.');
+            setAuthStep('initial');
+            setLoading(false);
+            return;
+          }
+          loginAsDemo('doctor', authRes.doctor.email, authRes.doctor.fullName, authRes.doctor.hospitalId);
+          return;
+        }
+      }
+
       if (!isFirebaseConfigured) {
         loginAsDemo(
           role === 'doctor' ? 'doctor' : role === 'admin' ? 'admin' : 'patient',

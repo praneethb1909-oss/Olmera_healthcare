@@ -6,11 +6,20 @@ import {
   Calendar, Clock, User, Trash2, Plus, MessageCircle, Activity, ChevronRight,
   FileText, Receipt, ClipboardList, Pill, TestTube2, Video, Play, TrendingUp,
   Shield, Zap, Bed, Smartphone, Phone, AlertCircle, CheckCircle2,
-  MoreVertical, X, Download, Share2, Bell, Sparkles, Droplets, ShieldCheck
+  MoreVertical, X, Download, Share2, Bell, Sparkles, Droplets, ShieldCheck,
+  Navigation, Compass, MapPin
 } from 'lucide-react';
 import { Chat } from './Chat';
 import { AIPreConsultationModal } from './AIPreConsultationModal';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { ConsentManagementModal } from './clinical/ConsentManagementModal';
+import { FamilyManagementModal } from './clinical/FamilyManagementModal';
+import { WearableSyncModal } from './clinical/WearableSyncModal';
+import { PharmacyOrderModal } from './clinical/PharmacyOrderModal';
+import { EmergencySOSModal } from './location/EmergencySOSModal';
+import { AppointmentNavigationModal } from './location/AppointmentNavigationModal';
+import { PatientLocationPreferencesModal } from './location/PatientLocationPreferencesModal';
+import { vitalsDeviceService } from '../services/clinical/vitalsDeviceService';
 
 interface Appointment {
   id: string;
@@ -48,6 +57,11 @@ export function Dashboard({ onBookNew }: DashboardProps) {
   const [medicalReports, setMedicalReports] = useState<any[]>([]);
   const [patientVitals, setPatientVitals] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'telemedicine'>('all');
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const [showWearableModal, setShowWearableModal] = useState(false);
+  const [showPharmacyOrderModal, setShowPharmacyOrderModal] = useState(false);
+  const [extendedVitals, setExtendedVitals] = useState<any>(null);
 
   const HEALTH_QUOTES = [
     { te: "ఆరోగ్యమే మహాభాగ్యం.", en: "Health is the greatest wealth." },
@@ -71,6 +85,10 @@ export function Dashboard({ onBookNew }: DashboardProps) {
       const vitalsDoc = await getDoc(doc(db, 'patient_vitals', user.uid));
       if (vitalsDoc.exists()) {
         setPatientVitals(vitalsDoc.data());
+      }
+      const history = vitalsDeviceService.getVitalsHistory(user.uid);
+      if (history.length > 0) {
+        setExtendedVitals(history[0]);
       }
     } catch (error) {
       console.error('Error loading patient vitals:', error);
@@ -123,6 +141,8 @@ export function Dashboard({ onBookNew }: DashboardProps) {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showIntakeModal, setShowIntakeModal] = useState(false);
   const [intakeAppointment, setIntakeAppointment] = useState<Appointment | null>(null);
+  const [navigatingAppointment, setNavigatingAppointment] = useState<Appointment | null>(null);
+  const [showLocationPrefsModal, setShowLocationPrefsModal] = useState(false);
 
   const loadPatientProfile = useCallback(async () => {
     if (!user) return;
@@ -570,6 +590,49 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
         </button>
       </div>
 
+      {/* Location-Aware Healthcare Network & Navigation Banner */}
+      <div className="card p-5 bg-[var(--color-surface)] border-[var(--color-line)] rounded-2xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-xl border border-[var(--color-primary)]/20 shrink-0">
+            <Compass size={24} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-primary)]">
+                GPS Location & Network Navigation
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold">
+                Live Spatial Discovery
+              </span>
+            </div>
+            <h3 className="font-display font-semibold text-base text-[var(--color-ink)] mt-0.5">
+              Discover Healthcare Facilities & Check In via GPS
+            </h3>
+            <p className="text-xs text-[var(--color-muted)] mt-0.5">
+              Interactive map routing across Rajam, Vizag & Srikakulam hubs with campus arrival geofencing.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+          <button
+            onClick={() => (window as any).setView('patient-location-map')}
+            className="btn-primary py-2.5 px-4 text-xs rounded-xl flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
+          >
+            <Compass size={14} />
+            <span>Open Interactive Map</span>
+          </button>
+          <button
+            onClick={() => setShowLocationPrefsModal(true)}
+            className="btn-outline py-2.5 px-3 text-xs rounded-xl flex items-center justify-center gap-1"
+            title="Saved Locations & Privacy"
+          >
+            <MapPin size={14} />
+            <span className="hidden sm:inline">Preferences</span>
+          </button>
+        </div>
+      </div>
+
       {/* Main Responsive Grid: 8 Cols Main Content + 4 Cols Clinical Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* Left Column: Appointments, Vitals & Wellness (8 Cols) */}
@@ -711,6 +774,14 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
                       {/* Action Buttons */}
                       <div className="flex items-center gap-2 self-end md:self-center">
                         <button
+                          onClick={() => setNavigatingAppointment(apt)}
+                          className="px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-line)] hover:border-[var(--color-primary)] text-[var(--color-primary)] rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
+                          title="GPS Directions & Campus Arrival Check-In"
+                        >
+                          <Navigation size={13} />
+                          <span>Directions</span>
+                        </button>
+                        <button
                           onClick={() => {
                             setIntakeAppointment(apt);
                             setShowIntakeModal(true);
@@ -812,51 +883,128 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
               </span>
             </div>
 
-            {/* 4 Vitals Badges Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
-                <div className="flex items-center gap-2 text-[var(--color-primary)] mb-2">
-                  <Activity size={16} />
-                  <span className="text-xs font-medium text-[var(--color-muted)]">Blood Pressure</span>
+            {/* 6 Vitals Badges Grid (Extended Biometrics & Wearables) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
+                <div className="flex items-center gap-1.5 text-[var(--color-primary)] mb-1.5">
+                  <Activity size={14} />
+                  <span className="text-[11px] font-medium text-[var(--color-muted)]">Blood Pressure</span>
                 </div>
-                <p className="text-xl font-display font-semibold text-[var(--color-ink)]">
-                  {patientVitals?.blood_pressure || '120/80'} <span className="text-xs font-normal text-[var(--color-muted)]">mmHg</span>
+                <p className="text-lg font-display font-semibold text-[var(--color-ink)]">
+                  {extendedVitals?.bloodPressureSystolic ? `${extendedVitals.bloodPressureSystolic}/${extendedVitals.bloodPressureDiastolic}` : (patientVitals?.blood_pressure || '120/80')}
                 </p>
-                <p className="text-[10px] text-[var(--color-primary)] font-medium mt-1">Optimal Range</p>
+                <p className="text-[10px] text-[var(--color-primary)] font-medium mt-0.5">mmHg • Optimal</p>
               </div>
 
-              <div className="p-4 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
-                <div className="flex items-center gap-2 text-[var(--color-primary)] mb-2">
-                  <Activity size={16} />
-                  <span className="text-xs font-medium text-[var(--color-muted)]">Pulse Rate</span>
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
+                <div className="flex items-center gap-1.5 text-[var(--color-primary)] mb-1.5">
+                  <Activity size={14} />
+                  <span className="text-[11px] font-medium text-[var(--color-muted)]">Pulse Rate</span>
                 </div>
-                <p className="text-xl font-display font-semibold text-[var(--color-ink)]">
-                  {patientVitals?.pulse || '72'} <span className="text-xs font-normal text-[var(--color-muted)]">BPM</span>
+                <p className="text-lg font-display font-semibold text-[var(--color-ink)]">
+                  {extendedVitals?.pulseBpm || patientVitals?.pulse || '72'} <span className="text-xs font-normal text-[var(--color-muted)]">BPM</span>
                 </p>
-                <p className="text-[10px] text-[var(--color-primary)] font-medium mt-1">Resting Rhythm</p>
+                <p className="text-[10px] text-[var(--color-primary)] font-medium mt-0.5">Resting Rhythm</p>
               </div>
 
-              <div className="p-4 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
-                <div className="flex items-center gap-2 text-[var(--color-primary)] mb-2">
-                  <Droplets size={16} />
-                  <span className="text-xs font-medium text-[var(--color-muted)]">SpO2 Oxygen</span>
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
+                <div className="flex items-center gap-1.5 text-[var(--color-primary)] mb-1.5">
+                  <Droplets size={14} />
+                  <span className="text-[11px] font-medium text-[var(--color-muted)]">SpO2 Oxygen</span>
                 </div>
-                <p className="text-xl font-display font-semibold text-[var(--color-ink)]">
-                  {patientVitals?.spo2 || '98'} <span className="text-xs font-normal text-[var(--color-muted)]">%</span>
+                <p className="text-lg font-display font-semibold text-[var(--color-ink)]">
+                  {extendedVitals?.spo2Percent || patientVitals?.spo2 || '98'}%
                 </p>
-                <p className="text-[10px] text-[var(--color-primary)] font-medium mt-1">Optimal Saturation</p>
+                <p className="text-[10px] text-[var(--color-primary)] font-medium mt-0.5">Optimal Saturation</p>
               </div>
 
-              <div className="p-4 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
-                <div className="flex items-center gap-2 text-[var(--color-primary)] mb-2">
-                  <TrendingUp size={16} />
-                  <span className="text-xs font-medium text-[var(--color-muted)]">Body Weight</span>
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
+                <div className="flex items-center gap-1.5 text-[var(--color-primary)] mb-1.5">
+                  <TrendingUp size={14} />
+                  <span className="text-[11px] font-medium text-[var(--color-muted)]">Fasting Sugar</span>
                 </div>
-                <p className="text-xl font-display font-semibold text-[var(--color-ink)]">
-                  {patientVitals?.weight || '68.5'} <span className="text-xs font-normal text-[var(--color-muted)]">kg</span>
+                <p className="text-lg font-display font-semibold text-[var(--color-ink)]">
+                  {extendedVitals?.bloodGlucoseFasting || 96} <span className="text-xs font-normal text-[var(--color-muted)]">mg/dL</span>
                 </p>
-                <p className="text-[10px] text-[var(--color-muted)] font-medium mt-1">BMI 22.4 (Healthy)</p>
+                <p className="text-[10px] text-emerald-600 font-medium mt-0.5">Glycemic Stable</p>
               </div>
+
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
+                <div className="flex items-center gap-1.5 text-[var(--color-primary)] mb-1.5">
+                  <Activity size={14} />
+                  <span className="text-[11px] font-medium text-[var(--color-muted)]">Daily Steps</span>
+                </div>
+                <p className="text-lg font-display font-semibold text-[var(--color-ink)]">
+                  {(extendedVitals?.dailySteps || 7850).toLocaleString('en-IN')}
+                </p>
+                <p className="text-[10px] text-[var(--color-primary)] font-medium mt-0.5">
+                  {extendedVitals?.activeMinutes || 42} Active Mins
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-[var(--color-surface-subtle)] rounded-2xl border border-[var(--color-line)]">
+                <div className="flex items-center gap-1.5 text-[var(--color-primary)] mb-1.5">
+                  <Clock size={14} />
+                  <span className="text-[11px] font-medium text-[var(--color-muted)]">Sleep Rest</span>
+                </div>
+                <p className="text-lg font-display font-semibold text-[var(--color-ink)]">
+                  {extendedVitals?.sleepHours || 7.4} <span className="text-xs font-normal text-[var(--color-muted)]">Hrs</span>
+                </p>
+                <p className="text-[10px] text-emerald-600 font-medium mt-0.5">
+                  {extendedVitals?.sleepQualityScore || 88}/100 Restorative
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Action Clinical Hub Controls */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+              <button
+                onClick={() => setShowConsentModal(true)}
+                className="p-3 bg-[var(--color-surface-subtle)] hover:bg-[var(--color-primary)] hover:text-white rounded-xl border border-[var(--color-line)] text-left transition-all active:scale-95 group"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)] group-hover:text-white/80 block">
+                  Data Sovereignty
+                </span>
+                <span className="text-xs font-semibold block mt-0.5">
+                  Hospital Sharing Consent
+                </span>
+              </button>
+
+              <button
+                onClick={() => setShowFamilyModal(true)}
+                className="p-3 bg-[var(--color-surface-subtle)] hover:bg-[var(--color-primary)] hover:text-white rounded-xl border border-[var(--color-line)] text-left transition-all active:scale-95 group"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)] group-hover:text-white/80 block">
+                  Household Care
+                </span>
+                <span className="text-xs font-semibold block mt-0.5">
+                  Family Health Profiles
+                </span>
+              </button>
+
+              <button
+                onClick={() => setShowWearableModal(true)}
+                className="p-3 bg-[var(--color-surface-subtle)] hover:bg-[var(--color-primary)] hover:text-white rounded-xl border border-[var(--color-line)] text-left transition-all active:scale-95 group"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)] group-hover:text-white/80 block">
+                  Health Sensors
+                </span>
+                <span className="text-xs font-semibold block mt-0.5">
+                  Sync Wearables & Watch
+                </span>
+              </button>
+
+              <button
+                onClick={() => setShowPharmacyOrderModal(true)}
+                className="p-3 bg-[var(--color-surface-subtle)] hover:bg-[var(--color-primary)] hover:text-white rounded-xl border border-[var(--color-line)] text-left transition-all active:scale-95 group"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted)] group-hover:text-white/80 block">
+                  Dispensary Network
+                </span>
+                <span className="text-xs font-semibold block mt-0.5">
+                  Order Prescriptions
+                </span>
+              </button>
             </div>
 
             {/* Clinical Note Callout */}
@@ -1168,152 +1316,41 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
         </div>
       )}
 
-      {/* Emergency Modal */}
-      {showEmergencyModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface)] text-[var(--color-ink)] w-full max-w-lg rounded-3xl p-6 sm:p-8 shadow-2xl border border-[var(--color-line)] animate-scaleIn">
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--color-line)]">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-[var(--color-surface-subtle)] text-[var(--color-primary)] rounded-2xl flex items-center justify-center border border-[var(--color-line)]">
-                  <AlertCircle size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-display font-semibold">Emergency Assistance</h3>
-                  <p className="text-xs text-[var(--color-muted)]">Immediate dispatch & triage response</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowEmergencyModal(false);
-                  setEmergencyStep('initial');
-                }}
-                className="p-2 hover:bg-[var(--color-surface-subtle)] rounded-xl transition-colors text-[var(--color-muted)] hover:text-[var(--color-ink)]"
-              >
-                <X size={20} />
-              </button>
-            </div>
+      {/* Emergency Modal - High-Precision GPS SOS & Live Sharing */}
+      <EmergencySOSModal
+        isOpen={showEmergencyModal}
+        onClose={() => setShowEmergencyModal(false)}
+        patientId={user?.uid || 'demo-patient-uid'}
+        patientName={patientName}
+        onAmbulanceDispatched={(loc) => {
+          console.info('Emergency ambulance dispatched to:', loc);
+        }}
+      />
 
-            {emergencyStep === 'initial' && (
-              <div className="space-y-3">
-                <button
-                  onClick={() => setEmergencyStep('ambulance')}
-                  className="w-full p-4 bg-[var(--color-surface-subtle)] hover:border-[var(--color-primary)] border border-[var(--color-line)] rounded-2xl flex items-center justify-between transition-all"
-                >
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="p-2 bg-[var(--color-surface)] text-[var(--color-primary)] rounded-xl border border-[var(--color-line)]">
-                      <Bed size={20} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm text-[var(--color-ink)]">Dispatch Ambulance</p>
-                      <p className="text-xs text-[var(--color-muted)]">Paramedic unit dispatched to current GPS</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-[var(--color-muted)]" />
-                </button>
-
-                <button
-                  onClick={() => setEmergencyStep('booking')}
-                  className="w-full p-4 bg-[var(--color-surface-subtle)] hover:border-[var(--color-primary)] border border-[var(--color-line)] rounded-2xl flex items-center justify-between transition-all"
-                >
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="p-2 bg-[var(--color-surface)] text-[var(--color-primary)] rounded-xl border border-[var(--color-line)]">
-                      <Video size={20} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm text-[var(--color-ink)]">Emergency Video Triage</p>
-                      <p className="text-xs text-[var(--color-muted)]">Connect directly with an on-call physician</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-[var(--color-muted)]" />
-                </button>
-
-                <button
-                  onClick={() => {
-                    setShowEmergencyModal(false);
-                    (window as any).setView('support');
-                  }}
-                  className="w-full p-4 bg-[var(--color-surface-subtle)] hover:border-[var(--color-primary)] border border-[var(--color-line)] rounded-2xl flex items-center justify-between transition-all"
-                >
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="p-2 bg-[var(--color-surface)] text-[var(--color-primary)] rounded-xl border border-[var(--color-line)]">
-                      <Smartphone size={20} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm text-[var(--color-ink)]">Careline Coordinator</p>
-                      <p className="text-xs text-[var(--color-muted)]">Encrypted patient concierge channel</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="text-[var(--color-muted)]" />
-                </button>
-              </div>
-            )}
-
-            {emergencyStep === 'ambulance' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-[var(--color-muted)] block mb-1">
-                    Confirm Pickup Location & Landmark:
-                  </label>
-                  <textarea
-                    id="emergency-location"
-                    placeholder="e.g. Near GMRIT Campus, Main Road, Rajam..."
-                    className="w-full p-3 bg-[var(--color-surface-subtle)] border border-[var(--color-line)] rounded-xl text-sm min-h-[90px] outline-none focus:border-[var(--color-primary)]"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEmergencyStep('initial')}
-                    className="btn-outline flex-1 py-3 rounded-xl font-medium text-xs"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      const loc = (document.getElementById('emergency-location') as HTMLTextAreaElement)?.value;
-                      requestEmergencyAmbulance(loc || 'Current Location');
-                    }}
-                    className="btn-primary flex-[2] py-3 rounded-xl font-medium text-xs shadow-sm"
-                  >
-                    Confirm Dispatch
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {emergencyStep === 'booking' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-[var(--color-muted)] block mb-1">
-                    Describe Emergency Symptoms:
-                  </label>
-                  <textarea
-                    id="emergency-symptoms"
-                    placeholder="Briefly state symptoms for the on-call physician..."
-                    className="w-full p-3 bg-[var(--color-surface-subtle)] border border-[var(--color-line)] rounded-xl text-sm min-h-[90px] outline-none focus:border-[var(--color-primary)]"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEmergencyStep('initial')}
-                    className="btn-outline flex-1 py-3 rounded-xl font-medium text-xs"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => {
-                      const sym = (document.getElementById('emergency-symptoms') as HTMLTextAreaElement)?.value;
-                      bookEmergencyConsultation(sym || 'Immediate medical attention required');
-                    }}
-                    className="btn-primary flex-[2] py-3 rounded-xl font-medium text-xs shadow-sm"
-                  >
-                    Connect With Physician
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Appointment GPS Navigation & Campus Check-In Modal */}
+      {navigatingAppointment && (
+        <AppointmentNavigationModal
+          isOpen={!!navigatingAppointment}
+          onClose={() => setNavigatingAppointment(null)}
+          appointmentId={navigatingAppointment.id}
+          patientId={user?.uid || 'demo-patient-uid'}
+          doctorName={navigatingAppointment.doctor?.name || 'Clinical Specialist'}
+          hospitalName="GMR Varalakshmi Care Hospital (Rajam Anchor Hub)"
+          hospitalId="hosp-rajam-01"
+          appointmentDate={navigatingAppointment.appointment_date}
+          appointmentTime={navigatingAppointment.appointment_time}
+          onCheckInCompleted={(result) => {
+            console.info('Campus check-in result:', result);
+          }}
+        />
       )}
+
+      {/* Patient Saved Locations & Location Privacy Preferences */}
+      <PatientLocationPreferencesModal
+        isOpen={showLocationPrefsModal}
+        onClose={() => setShowLocationPrefsModal(false)}
+        userId={user?.uid || 'demo-patient-uid'}
+      />
 
       {/* Reschedule Modal */}
       {showRescheduleModal && reschedulingApt && (
@@ -1399,6 +1436,42 @@ Note: Summary synthesized by Olmera Clinical Engine for physician sign-off.`);
             alert('AI Pre-Visit Intake brief successfully compiled and linked to your appointment profile!');
             setShowIntakeModal(false);
           }}
+        />
+      )}
+
+      {/* Consent Management Modal */}
+      {showConsentModal && (
+        <ConsentManagementModal
+          isOpen={showConsentModal}
+          onClose={() => setShowConsentModal(false)}
+        />
+      )}
+
+      {/* Family Health Management Modal */}
+      {showFamilyModal && (
+        <FamilyManagementModal
+          isOpen={showFamilyModal}
+          onClose={() => setShowFamilyModal(false)}
+          onSelectMemberForBooking={() => {
+            onBookNew();
+          }}
+        />
+      )}
+
+      {/* Wearable & Platform Sync Modal */}
+      {showWearableModal && (
+        <WearableSyncModal
+          isOpen={showWearableModal}
+          onClose={() => setShowWearableModal(false)}
+          onVitalsSynced={(entry) => setExtendedVitals(entry)}
+        />
+      )}
+
+      {/* Prescription Pharmacy Order Modal */}
+      {showPharmacyOrderModal && (
+        <PharmacyOrderModal
+          isOpen={showPharmacyOrderModal}
+          onClose={() => setShowPharmacyOrderModal(false)}
         />
       )}
 

@@ -74,7 +74,7 @@ export function SessionTimeoutModal({ onLogout }: SessionTimeoutModalProps) {
 
         {/* Countdown Timer Display */}
         <div className="p-4 rounded-2xl bg-[var(--color-surface-subtle)] border border-[var(--color-line)]">
-          <span className="text-3xl font-mono font-semibold text-[var(--color-primary)] tracking-tight">
+          <span className="text-3xl font-mono tabular-nums font-semibold text-[var(--color-primary)] tracking-tight">
             {timeFormatted}
           </span>
           <p className="text-[11px] text-[var(--color-muted)] mt-1 font-ui">

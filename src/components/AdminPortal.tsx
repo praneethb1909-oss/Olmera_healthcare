@@ -14,7 +14,8 @@ import {
   AlertCircle, Briefcase, Activity, ShieldCheck, PieChart,
   CreditCard, ExternalLink, MoreVertical, Building,
   Mail, User, XCircle, Cpu, Eye, ShieldAlert, Lock, Unlock,
-  RefreshCw, Play, CheckCircle2, Clock, Database, Copy, CheckCheck
+  RefreshCw, Play, CheckCircle2, Clock, Database, Copy, CheckCheck,
+  TestTube2, Pill
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
@@ -25,8 +26,12 @@ import { runHospitalAuthValidationSuite, HospitalAuthTestSuiteReport } from '../
 import { HOSPITAL_ROLES, hasHospitalPermission } from '../services/auth/rbac';
 import { processClinicalFileUpload, resolveClinicalDocumentUrl } from '../services/storage/clinicalStorage';
 import { maskEmail } from '../utils/masking';
+import { AdminFollowUpCoordinator } from './clinical/AdminFollowUpCoordinator';
+import { AdminFHIRSuite } from './clinical/AdminFHIRSuite';
+import { DiagnosticLabPortal } from './clinical/DiagnosticLabPortal';
+import { PharmacyPartnerPortal } from './clinical/PharmacyPartnerPortal';
 
-type AdminTab = 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'hospitals' | 'reports' | 'files' | 'payments' | 'notifications' | 'audit';
+type AdminTab = 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'hospitals' | 'reports' | 'files' | 'payments' | 'notifications' | 'audit' | 'follow-ups' | 'fhir' | 'lab' | 'pharmacy';
 
 export function AdminPortal() {
   const { user } = useAuth();
@@ -500,6 +505,7 @@ export function AdminPortal() {
               <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Patient</th>
               <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Doctor</th>
               <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Date/Time</th>
+              <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Campus Arrival (Geofence)</th>
               <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
               <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
             </tr>
@@ -514,8 +520,19 @@ export function AdminPortal() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{apt.appointment_time}</p>
                 </td>
                 <td className="px-8 py-5">
+                  {apt.checked_in || apt.status === 'checked_in' ? (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200 dark:border-emerald-800">
+                      ✓ Arrived on Campus (Lobby Queue)
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-medium">
+                      Expected In Transit (~15m)
+                    </span>
+                  )}
+                </td>
+                <td className="px-8 py-5">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                    apt.status === 'confirmed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                    apt.status === 'confirmed' || apt.status === 'checked_in' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
                   }`}>
                     {apt.status}
                   </span>
@@ -1224,6 +1241,10 @@ export function AdminPortal() {
             { id: 'files', label: 'Clinical Vault', icon: FileText },
             { id: 'payments', label: 'Revenue Ops', icon: CreditCard },
             { id: 'notifications', label: 'Broadcasts', icon: Bell },
+            { id: 'follow-ups', label: 'Follow-Up Engine', icon: Activity },
+            { id: 'fhir', label: 'FHIR R4 Exchange', icon: Database },
+            { id: 'lab', label: 'Diagnostics Lab', icon: TestTube2 },
+            { id: 'pharmacy', label: 'Pharmacy Network', icon: Pill },
             { id: 'audit', label: 'Security & Audit', icon: ShieldCheck }
           ].map((item) => (
             <button
@@ -1300,6 +1321,10 @@ export function AdminPortal() {
             {activeTab === 'files' && renderFiles()}
             {activeTab === 'payments' && renderPayments()}
             {activeTab === 'notifications' && renderNotifications()}
+            {activeTab === 'follow-ups' && <AdminFollowUpCoordinator />}
+            {activeTab === 'fhir' && <AdminFHIRSuite />}
+            {activeTab === 'lab' && <DiagnosticLabPortal />}
+            {activeTab === 'pharmacy' && <PharmacyPartnerPortal />}
             {activeTab === 'audit' && renderAudit()}
           </>
         )}

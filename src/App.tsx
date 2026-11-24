@@ -26,19 +26,23 @@ import { SupportChatPage } from './components/SupportChatPage';
 import { NotificationsPage } from './components/NotificationsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { TelemedicineUI } from './components/TelemedicineUI';
-import { ContactUs } from './components/ContactUs';
 import { AboutUs } from './components/AboutUs';
-import { ServicesPage } from './components/ServicesPage';
+import { ServicesAndContactPage } from './components/ServicesAndContactPage';
+import { DoctorProfilePage } from './components/doctor/DoctorProfilePage';
+import { DoctorSettingsPage } from './components/doctor/DoctorSettingsPage';
 import { LandingPage } from './components/LandingPage';
 import { MedicareWaveLoader } from './components/common/MedicareWaveLoader';
 import { HospitalAdminLogin } from './components/auth/HospitalAdminLogin';
 import { SessionTimeoutModal } from './components/auth/SessionTimeoutModal';
 import { sessionManager } from './services/auth/sessionManager';
+import { DiagnosticLabPortal } from './components/clinical/DiagnosticLabPortal';
+import { PharmacyPartnerPortal } from './components/clinical/PharmacyPartnerPortal';
+import { NearbyHealthcareDiscovery } from './components/location/NearbyHealthcareDiscovery';
 import { Activity } from 'lucide-react';
 
 type View = 
   // Shared Views
-  | 'about-us' | 'contact-us' | 'services'
+  | 'about-us' | 'services-contact' | 'contact-us' | 'services'
   // Admin Views
   | 'admin-portal' | 'admin-patients' | 'admin-doctors' | 'admin-departments' 
   | 'admin-beds' | 'admin-lab' | 'admin-pharmacy' | 'admin-billing' 
@@ -52,7 +56,7 @@ type View =
   | 'dashboard' | 'hospitals' | 'departments' | 'doctors' | 'booking' | 'payment'
   | 'patient-appointments' | 'patient-records' | 'patient-lab' | 'patient-prescriptions' 
   | 'patient-billing' | 'patient-find-doctor' | 'patient-find-hospital' | 'patient-support' | 'patient-profile'
-  | 'patient-medical-reports' | 'patient-notifications'
+  | 'patient-medical-reports' | 'patient-notifications' | 'patient-location-map'
   | 'telemedicine' | 'bed-availability' | 'pharmacy' | 'ambulance'
   | 'settings';
 
@@ -78,21 +82,21 @@ function PlaceholderView({ title }: { title: string }) {
   );
 }
 
-function resolvePublicViewFromPath(): 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us' {
+function resolvePublicViewFromPath(): 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services-contact' | 'services' | 'about-us' | 'contact-us' {
   if (typeof window === 'undefined') return 'landing';
   const path = window.location.pathname.toLowerCase();
-  if (path === '/services' || path.startsWith('/services/')) return 'services';
+  if (path === '/services-contact' || path === '/services' || path.startsWith('/services/') || path === '/contact-us' || path === '/contact' || path.startsWith('/contact')) return 'services-contact';
   if (path === '/doctors' || path.startsWith('/doctors/')) return 'doctors';
   if (path === '/hospitals' || path.startsWith('/hospitals/')) return 'hospitals';
   if (path === '/about-us' || path === '/about' || path.startsWith('/about')) return 'about-us';
-  if (path === '/contact-us' || path === '/contact' || path.startsWith('/contact')) return 'contact-us';
   if (path === '/privacy') return 'about-us';
   if (path === '/auth' || path === '/login' || path === '/admin-login') return 'auth';
   return 'landing';
 }
 
-function getPathForPublicView(view: 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us'): string {
+function getPathForPublicView(view: 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services-contact' | 'services' | 'about-us' | 'contact-us'): string {
   switch (view) {
+    case 'services-contact': return '/services-contact';
     case 'services': return '/services';
     case 'doctors': return '/doctors';
     case 'hospitals': return '/hospitals';
@@ -106,13 +110,13 @@ function getPathForPublicView(view: 'landing' | 'auth' | 'doctors' | 'hospitals'
 
 function AppContent() {
   const { user, loading, role, loginAsDemo, signOut, signInHospitalAdmin } = useAuth();
-  const [publicView, setPublicView] = useState<'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us'>(resolvePublicViewFromPath);
+  const [publicView, setPublicView] = useState<'landing' | 'auth' | 'doctors' | 'hospitals' | 'services-contact' | 'services' | 'about-us' | 'contact-us'>(resolvePublicViewFromPath);
   const [authRole, setAuthRole] = useState<'patient' | 'doctor' | 'admin'>('patient');
   const [viewState, setViewState] = useState<ViewState>({ 
     current: 'dashboard' 
   });
 
-  const navigateToPublicView = useCallback((view: 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services' | 'about-us' | 'contact-us', updateHistory = true) => {
+  const navigateToPublicView = useCallback((view: 'landing' | 'auth' | 'doctors' | 'hospitals' | 'services-contact' | 'services' | 'about-us' | 'contact-us', updateHistory = true) => {
     setPublicView(view);
     if (updateHistory && typeof window !== 'undefined') {
       const targetPath = getPathForPublicView(view);
@@ -270,18 +274,18 @@ function AppContent() {
       );
     }
 
-    if (publicView === 'services') {
+    if (publicView === 'services-contact' || publicView === 'services' || publicView === 'contact-us') {
       return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
+        <div className="min-h-screen bg-[var(--color-bg)] p-4 sm:p-8">
           <div className="max-w-7xl mx-auto">
             <button
               onClick={() => navigateToPublicView('landing')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors mb-6 px-3.5 py-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] min-h-[44px]"
             >
               ← Back to Homepage
             </button>
             <main id="main-content">
-              <ServicesPage />
+              <ServicesAndContactPage />
             </main>
           </div>
         </div>
@@ -306,24 +310,6 @@ function AppContent() {
       );
     }
 
-    if (publicView === 'contact-us') {
-      return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-8">
-          <div className="max-w-7xl mx-auto">
-            <button
-              onClick={() => navigateToPublicView('landing')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-6 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 min-h-[44px]"
-            >
-              ← Back to Homepage
-            </button>
-            <main id="main-content">
-              <ContactUs />
-            </main>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <LandingPage 
         onOpenAuth={(selectedRole) => {
@@ -331,7 +317,7 @@ function AppContent() {
           navigateToPublicView('auth');
         }}
         onNavigateToView={(view) => {
-          if (['doctors', 'hospitals', 'services', 'about-us', 'contact-us'].includes(view)) {
+          if (['doctors', 'hospitals', 'services-contact', 'services', 'about-us', 'contact-us'].includes(view)) {
             navigateToPublicView(view as any);
           } else {
             setAuthRole('patient');
@@ -348,8 +334,9 @@ function AppContent() {
   const renderContent = () => {
     // Shared Global Views
     if (viewState.current === 'about-us') return <AboutUs />;
-    if (viewState.current === 'contact-us') return <ContactUs />;
-    if (viewState.current === 'services') return <ServicesPage />;
+    if (viewState.current === 'services-contact' || viewState.current === 'contact-us' || viewState.current === 'services') {
+      return <ServicesAndContactPage />;
+    }
 
     // Role-Based Routing
     if (currentRole === 'doctor') {
@@ -361,12 +348,17 @@ function AppContent() {
         case 'doctor-prescriptions': return <PrescriptionsPage />;
         case 'doctor-notifications': return <NotificationsPage />;
         case 'doctor-medical-reports': return <MedicalReportPage />;
-        case 'doctor-settings': return <SettingsPage />;
+        case 'doctor-profile': return <DoctorProfilePage />;
+        case 'doctor-settings':
+        case 'settings':
+          return <DoctorSettingsPage />;
         default: return <DoctorPortal />;
       }
     }
 
     if (currentRole === 'admin') {
+      if (viewState.current === 'admin-lab') return <DiagnosticLabPortal />;
+      if (viewState.current === 'admin-pharmacy') return <PharmacyPartnerPortal />;
       return <AdminPortal />; // AdminPortal handles its own internal tabs
     }
 
@@ -411,6 +403,8 @@ function AppContent() {
       case 'patient-support': return <SupportChatPage />;
       case 'patient-profile': return <ProfilePage />;
       case 'patient-notifications': return <NotificationsPage />;
+      case 'patient-location-map': 
+        return <NearbyHealthcareDiscovery onSelectHospitalForBooking={selectHospital} onNavigateToView={(view) => setView(view as any)} />;
       case 'telemedicine': return <TelemedicineUI onBack={() => setView('dashboard')} />;
       case 'settings': return <SettingsPage />;
       default: return <Dashboard onBookNew={() => setView('hospitals')} />;

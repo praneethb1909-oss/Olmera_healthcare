@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test": "tsx src/services/tests/runClinicalTests.ts && tsx src/services/tests/runLocationTests.ts",
+    "test:location": "tsx src/services/tests/runLocationTests.ts",
+    "test:clinical": "tsx src/services/tests/runClinicalTests.ts",
     "seed": "tsx src/scripts/seed_firebase.ts",
     "seed:auth": "tsx src/scripts/seed_auth.ts",
     "dev": "vite",
