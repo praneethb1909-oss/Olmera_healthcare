@@ -1,48 +1,48 @@
 /* Olmera design tokens. Single source of truth: never hard-code colours elsewhere. */
-@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap");
 
 :root, html:not(.dark) {
   --brand-name: "Olmera";
-  --color-primary: #0E4F4A;      /* Deep Fern: brand teal */
-  --color-primary-hover: #093834;
-  --color-accent: #E0457B;       /* Rose accent */
-  --color-accent-hover: #c93568;
-  --color-coral: #FF7A59;        /* Warm coral */
-  --color-neon-cyan: #22E3C8;    /* Neon cyan */
-  --color-violet: #6D5BD0;       /* Clinical violet */
-  --color-violet-glow: #7B5CFF;  /* High-fidelity violet glow */
-  --color-ocean-blue: #0E8FB0;   /* Ocean blue */
-  --color-rose: #E0457B;         /* Rose accent */
-  --color-rose-glow: #FF5C8A;    /* Rose glow */
-  --color-mist: #D3EEF0;         /* Soft clinical mist */
-  --color-bg: #F6F2EA;           /* Parchment page background */
+  --color-primary: #0E4F4A;      /* Deep Fern: brand primary */
+  --color-primary-hover: #0A3C38;
+  --color-accent: #FF7A59;       /* Signal Coral: single-action accent */
+  --color-accent-hover: #E86544;
+  --color-coral: #FF7A59;
+  --color-neon-cyan: #2C7A73;    /* Muted clinical teal (softened) */
+  --color-violet: #5B678A;       /* Muted slate indigo (softened) */
+  --color-violet-glow: #6D799C;
+  --color-ocean-blue: #1D6E78;
+  --color-rose: #C85C4B;         /* Muted terracotta */
+  --color-rose-glow: #D96E5D;
+  --color-mist: #CFE3DD;         /* Mist secondary */
+  --color-bg: #F6F2EA;           /* Parchment background */
   --color-surface: #FFFFFF;
-  --color-surface-subtle: #F0ECE2;
-  --color-ink: #10201E;          /* text (WCAG AA compliant) */
-  --color-muted: #53635F;        /* text-muted (WCAG AA compliant against #FFFFFF and #F6F2EA) */
-  --color-line: #E2DCCF;
-  --color-monitor-bg: #07131A;   /* Clinical monitor dark canvas */
-  --color-monitor-surface: #0D1E24;
-  --color-monitor-line: #1B363F;
+  --color-surface-subtle: #EFEAE0;
+  --color-ink: #10201E;          /* Ink text (WCAG AA compliant) */
+  --color-muted: #4D5E5A;        /* Muted slate (WCAG AA compliant) */
+  --color-line: #E0D9CA;
+  --color-monitor-bg: #0E1F1D;   /* Deep Fern dark slate */
+  --color-monitor-surface: #142B28;
+  --color-monitor-line: #23433E;
   --font-display: "Fraunces", Georgia, serif;
-  --font-ui: "Figtree", "Instrument Sans", system-ui, sans-serif;
+  --font-ui: "Instrument Sans", system-ui, -apple-system, sans-serif;
   --radius-card: 18px;
   --radius-btn: 12px;
 }
 
 html.dark, body.dark {
-  --color-bg: #07131A;
-  --color-surface: #0D1E24;
-  --color-surface-subtle: #13272E;
-  --color-ink: #EDE9DF;
-  --color-muted: #9DB0AB;
-  --color-line: #1B363F;
-  --color-primary: #0E8FB0;
-  --color-primary-hover: #0A738E;
-  --color-neon-cyan: #22E3C8;
-  --color-violet: #7B5CFF;
-  --color-rose: #FF5C8A;
-  --color-mist: #17373C;
+  --color-bg: #0E1F1D;           /* Deep Fern dark slate (never near-black) */
+  --color-surface: #142B28;
+  --color-surface-subtle: #1A3531;
+  --color-ink: #F2EFE8;          /* Warm parchment ink */
+  --color-muted: #A7BBB6;
+  --color-line: #264742;
+  --color-primary: #2D8A82;
+  --color-primary-hover: #24726B;
+  --color-neon-cyan: #7BB5AE;
+  --color-violet: #8D99BC;
+  --color-rose: #E58570;
+  --color-mist: #1F443F;
 }
 
 body {
@@ -64,7 +64,7 @@ h1, h2, h3, h4, .font-display {
   transition: all 0.2s ease;
 }
 .btn-primary:hover {
-  opacity: 0.92;
+  background: var(--color-primary-hover);
 }
 
 .btn-accent {

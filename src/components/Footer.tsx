@@ -103,11 +103,18 @@ export function Footer({ setView }: FooterProps) {
         <div className="mt-8 pt-6 border-t border-[var(--color-line)] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[var(--color-muted)] font-ui">
           <p>© {new Date().getFullYear()} Olmera Health. All rights reserved. Care, quietly connected.</p>
           <div className="flex items-center gap-4">
-            <span className="hover:text-[var(--color-primary)] cursor-pointer">Privacy Charter</span>
+            <button type="button" onClick={() => setView('about-us')} className="hover:text-[var(--color-primary)] cursor-pointer">About Olmera</button>
             <span>•</span>
-            <span className="hover:text-[var(--color-primary)] cursor-pointer">Clinical Standards</span>
+            <button type="button" onClick={() => setView('services-contact')} className="hover:text-[var(--color-primary)] cursor-pointer">Services & Contact</button>
             <span>•</span>
-            <span className="hover:text-[var(--color-primary)] cursor-pointer">Security</span>
+            <a
+              href="https://github.com/praneethb1909-oss/Olmera_healthcare"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[var(--color-primary)] transition-colors"
+            >
+              GitHub Repository
+            </a>
           </div>
         </div>
       </div>
