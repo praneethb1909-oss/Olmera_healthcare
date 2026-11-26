@@ -6,6 +6,51 @@ import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 import { maskEmail, maskPhone } from '../utils/masking';
+import {
+  getOrCreateCsrfToken,
+  validateCsrfToken,
+  toSafeUserError
+} from '../services/security/securityControls';
+
+interface ServerVerifiedPricing {
+  valid: boolean;
+  serviceKey: string;
+  baseAmount: number;
+  discountAmount: number;
+  platformFee: number;
+  totalDue: number;
+  error?: string;
+}
+
+async function verifyPricingWithServer(
+  serviceKey: string,
+  claimedBaseAmount: number,
+  couponCode?: string
+): Promise<ServerVerifiedPricing> {
+  const csrfToken = getOrCreateCsrfToken();
+  if (!validateCsrfToken(csrfToken)) {
+    throw new Error('Session CSRF verification failed.');
+  }
+
+  const response = await fetch('/api/payments/verify', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+    },
+    body: JSON.stringify({
+      serviceKey,
+      claimedBaseAmount,
+      ...(couponCode ? { couponCode } : {}),
+    }),
+  });
+
+  const payload = (await response.json().catch(() => null)) as ServerVerifiedPricing | null;
+  if (!response.ok || !payload?.valid || typeof payload.totalDue !== 'number') {
+    throw new Error(payload?.error || 'Server price verification failed.');
+  }
+  return payload;
+}
 
 interface PaymentPageProps {
   amount: number;
@@ -104,18 +149,27 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
     setLoading(true);
     
     try {
-      // 1) Save transaction to Firestore
+      const verifiedPricing = await verifyPricingWithServer(
+        'general_consultation',
+        amount,
+        discount > 0 ? coupon.trim().toUpperCase() : undefined
+      );
+
+      // 1) Save transaction to Firestore using exclusively server-returned totalDue
       if (user) {
         await addDoc(collection(db, 'transactions'), {
           patient_id: user.uid,
           appointment_id: appointmentId || null,
-          amount: totalDue,
+          amount: verifiedPricing.totalDue,
+          base_amount: verifiedPricing.baseAmount,
+          discount_amount: verifiedPricing.discountAmount,
+          platform_fee: verifiedPricing.platformFee,
           date: serverTimestamp(),
           method: paymentMethod === 'card' ? 'Credit Card' : 
                   paymentMethod === 'upi' ? 'UPI' : 
                   paymentMethod === 'netbanking' ? 'Net Banking' : 'Pay at Hospital',
           status: paymentMethod === 'pay_at_hospital' ? 'pay-at-hospital' : 'paid',
-          serviceName: 'General Consultation', // Default
+          serviceName: 'General Consultation',
           provider: 'Olmera Care Network'
         });
       }
@@ -130,24 +184,21 @@ export function PaymentPage({ amount, appointmentId, onSuccess, onCancel }: Paym
         onSuccess();
       }, 2000);
     } catch (error) {
-      console.error('Error processing payment:', error);
-      alert('Error processing payment. Please try again.');
+      alert(toSafeUserError(error, 'Error processing payment. Please try again.'));
       setLoading(false);
     }
   };
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     setCouponError('');
     const code = coupon.trim().toUpperCase();
     if (!code) return;
-    // Simple coupon rules for demo
-    if (code === 'OLMERA10' || code === 'MEDI10') {
-      setDiscount(Math.round(amount * 0.1));
-    } else if (code === 'OLMERA100' || code === 'MEDI100') {
-      setDiscount(100);
-    } else {
+    try {
+      const check = await verifyPricingWithServer('general_consultation', amount, code);
+      setDiscount(check.discountAmount);
+    } catch (err) {
       setDiscount(0);
-      setCouponError('Invalid coupon code');
+      setCouponError(toSafeUserError(err, 'Invalid coupon code'));
     }
   };
 

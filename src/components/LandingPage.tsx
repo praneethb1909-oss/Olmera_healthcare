@@ -652,8 +652,8 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
                   >
                     <OlmeraHospitalIcon className="text-[var(--color-primary)] shrink-0" size={16} />
                     <div>
-                      <p className="font-semibold text-xs text-[var(--color-ink)] font-ui">Hospital Admin</p>
-                      <p className="text-[10px] text-[var(--color-muted)] font-ui">Enterprise IdP</p>
+                      <p className="font-semibold text-xs text-[var(--color-ink)] font-ui">Master Admin Portal</p>
+                      <p className="text-[10px] text-[var(--color-muted)] font-ui">Credits & Governance</p>
                     </div>
                   </button>
                 </div>
@@ -1093,7 +1093,7 @@ export function LandingPage({ onOpenAuth, onNavigateToView }: LandingPageProps) 
               <ul className="space-y-1.5 text-xs">
                 <li><button onClick={() => onOpenAuth('patient')} className="hover:text-[var(--color-primary)] transition-colors min-h-[28px] inline-flex items-center">Patient Sign In</button></li>
                 <li><button onClick={() => onOpenAuth('doctor')} className="hover:text-[var(--color-primary)] transition-colors min-h-[28px] inline-flex items-center">Specialist Login</button></li>
-                <li><button onClick={() => onOpenAuth('admin')} className="hover:text-[var(--color-primary)] transition-colors min-h-[28px] inline-flex items-center">Hospital Administrator</button></li>
+                <li><button onClick={() => onOpenAuth('admin')} className="hover:text-[var(--color-primary)] transition-colors min-h-[28px] inline-flex items-center font-semibold text-[var(--color-primary)]">Master Admin Portal</button></li>
                 <li><button onClick={() => onNavigateToView ? onNavigateToView('about-us') : onOpenAuth('patient')} className="hover:text-[var(--color-primary)] transition-colors min-h-[28px] inline-flex items-center">About Olmera</button></li>
                 <li><button onClick={() => onNavigateToView ? onNavigateToView('services-contact') : onOpenAuth('patient')} className="hover:text-[var(--color-primary)] transition-colors min-h-[28px] inline-flex items-center">Services & Contact</button></li>
               </ul>

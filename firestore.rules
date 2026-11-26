@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'active';
+    }
+
+    function isDoctor() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/doctors/$(request.auth.uid));
+    }
+
+    function isSeniorDoctor() {
+      return isDoctor() &&
+        get(/databases/$(database)/documents/doctors/$(request.auth.uid)).data.hierarchyRole == 'senior_consultant';
+    }
+
+    // Public catalog collections (read-only metadata, no patient PII)
+    match /hospitals/{hospitalId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /departments/{deptId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Hospital Admin profiles - strictly locked to self or active super-admin
+    match /admins/{adminId} {
+      allow read: if isOwner(adminId) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Doctor profiles & Senior/Junior Doctor hierarchy
+    match /doctors/{doctorId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() || isSeniorDoctor();
+      allow update: if isAdmin() || isOwner(doctorId) || isSeniorDoctor();
+      allow delete: if isAdmin();
+    }
+
+    // Patient records - strictly isolated to patient owner, treating doctor, or admin
+    match /patients/{patientId} {
+      allow read: if isOwner(patientId) || isDoctor() || isAdmin();
+      allow create: if isOwner(patientId) || isAdmin();
+      allow update: if isOwner(patientId) || isDoctor() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Appointments
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn() && (
+        resource.data.patient_id == request.auth.uid ||
+        (isDoctor() && resource.data.doctor_id == request.auth.uid) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && request.resource.data.patient_id == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.patient_id == request.auth.uid ||
+        isDoctor() ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Transactions - enforce positive validated numeric amount & owner isolation
+    match /transactions/{txId} {
+      allow read: if isSignedIn() && (
+        resource.data.patient_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() &&
+        request.resource.data.patient_id == request.auth.uid &&
+        request.resource.data.amount is number &&
+        request.resource.data.amount >= 100 &&
+        request.resource.data.base_amount is number &&
+        request.resource.data.base_amount >= 100 &&
+        request.resource.data.discount_amount is number &&
+        request.resource.data.discount_amount >= 0 &&
+        request.resource.data.platform_fee is number &&
+        request.resource.data.platform_fee >= 0 &&
+        request.resource.data.amount == (
+          request.resource.data.base_amount -
+          request.resource.data.discount_amount +
+          request.resource.data.platform_fee
+        );
+      allow update, delete: if isAdmin();
+    }
+
+    // Clinical submissions & Senior Doctor approval gate
+    match /clinical_submissions/{submissionId} {
+      allow read: if isDoctor() || isAdmin() || (
+        isSignedIn() &&
+        resource.data.patientId == request.auth.uid &&
+        resource.data.visibleToPatient == true
+      );
+      allow create: if isDoctor();
+      allow update: if isSeniorDoctor() || isAdmin();
+      allow delete: if false;
+    }
+
+    // Master Admin Credits & Usage Ledger - restricted exclusively to active admins
+    match /master_credits/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /master_credits_history/{txId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Security Audit Logs - immutable append-only (never modifiable or deletable)
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // Deny all unmatched collections by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

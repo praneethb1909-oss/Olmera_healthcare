@@ -7,6 +7,12 @@ import {
 import { OlmeraWordmark } from '../brand/OlmeraWordmark';
 import { hospitalIdp, HospitalRecord, HospitalStaffProfile } from '../../services/auth/hospitalIdp';
 import { validateHospitalPassword, HOSPITAL_PASSWORD_RULES } from '../../services/auth/passwordPolicy';
+import { enforceServerAuthRateLimit } from '../../services/security/securityControls';
+import {
+  OTP_VALIDITY_SECONDS,
+  issueLoginOtp,
+  clearOtpChallenge,
+} from '../../services/auth/otpService';
 import { runHospitalAuthValidationSuite, HospitalAuthTestSuiteReport } from '../../services/auth/validateHospitalAuth';
 import { MedicareWaveLoader } from '../common/MedicareWaveLoader';
 
@@ -23,6 +29,10 @@ export function HospitalAdminLogin({ onSuccess, onBackToPublic }: HospitalAdminL
   const [securityToken, setSecurityToken] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [requiresMfaStep, setRequiresMfaStep] = useState<boolean>(false);
+  const [activeOtp, setActiveOtp] = useState<string>('');
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState<number>(OTP_VALIDITY_SECONDS);
+  const [otpRefreshedNotice, setOtpRefreshedNotice] = useState<boolean>(false);
 
   // Status & Validation States
   const [loading, setLoading] = useState<boolean>(false);
@@ -43,6 +53,31 @@ export function HospitalAdminLogin({ onSuccess, onBackToPublic }: HospitalAdminL
       if (list.length > 0) setSelectedHospitalId(list[0].id);
     });
   }, []);
+
+  const refreshAdminOtp = (clearInput = false) => {
+    const idKey = staffIdentifier.trim().toLowerCase();
+    if (!idKey) return;
+    const issued = issueLoginOtp(idKey, OTP_VALIDITY_SECONDS);
+    setActiveOtp(issued.code);
+    setOtpExpiresAt(issued.expiresAt);
+    setOtpSecondsLeft(OTP_VALIDITY_SECONDS);
+    if (clearInput) {
+      setSecurityToken('');
+      setOtpRefreshedNotice(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!requiresMfaStep || !otpExpiresAt) return;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((otpExpiresAt - Date.now()) / 1000));
+      setOtpSecondsLeft(remaining);
+      if (remaining <= 0) {
+        refreshAdminOtp(true);
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [requiresMfaStep, otpExpiresAt, staffIdentifier]);
 
   const passwordEvaluation = validateHospitalPassword(password);
   const selectedHospital = hospitals.find(h => h.id === selectedHospitalId);
@@ -66,15 +101,16 @@ export function HospitalAdminLogin({ onSuccess, onBackToPublic }: HospitalAdminL
       return;
     }
 
-    if (!passwordEvaluation.valid) {
-      setErrorMessage(
-        `Password does not meet hospital security policy. Failed requirements: ${passwordEvaluation.errors.join(', ')}.`
-      );
-      setShowPasswordRules(true);
+    const serverRate = await enforceServerAuthRateLimit('login', staffIdentifier.trim().toLowerCase());
+    if (!serverRate.allowed) {
+      setErrorMessage(serverRate.error || 'Too many login attempts. Please wait before retrying.');
       return;
     }
 
-    // Advance to security token / MFA verification step
+    // Issue initial 30-second OTP challenge and advance to 2FA verification step
+    setOtpRefreshedNotice(false);
+    setSecurityToken('');
+    refreshAdminOtp(false);
     setRequiresMfaStep(true);
   };
 
@@ -423,8 +459,39 @@ export function HospitalAdminLogin({ onSuccess, onBackToPublic }: HospitalAdminL
                       Hospital Security Token
                     </h3>
                     <p className="text-xs text-[var(--color-muted)] max-w-sm mx-auto">
-                      Enter the 6-digit code displayed on your registered hardware token or hospital authenticator application.
+                      Enter the 6-digit code from your hospital authenticator. A fresh OTP is generated automatically every {OTP_VALIDITY_SECONDS} seconds.
                     </p>
+                    <div className="pt-1 flex flex-col items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSecurityToken(activeOtp);
+                          setOtpRefreshedNotice(false);
+                          setErrorMessage(null);
+                        }}
+                        className="text-xs font-semibold text-[var(--color-primary)] bg-[var(--color-mist)]/60 px-3.5 py-1.5 rounded-full inline-flex items-center gap-2 hover:bg-[var(--color-mist)] transition-colors font-mono"
+                        title="Click to auto-fill current active OTP"
+                      >
+                        <span>Verification Passcode: {activeOtp}</span>
+                      </button>
+                      <div className="w-full max-w-xs space-y-1">
+                        <div className="flex items-center justify-between text-[11px] font-medium">
+                          <span className="flex items-center gap-1 text-[var(--color-muted)]">
+                            <Clock size={12} className="text-[var(--color-primary)]" />
+                            {otpRefreshedNotice ? 'Code refreshed' : 'Active window'}
+                          </span>
+                          <span className={otpSecondsLeft <= 5 ? 'text-amber-500 font-semibold font-mono' : 'text-[var(--color-primary)] font-semibold font-mono'}>
+                            {otpSecondsLeft}s remaining
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-[var(--color-surface)] rounded-full overflow-hidden border border-[var(--color-line)]">
+                          <div
+                            className={`h-full transition-all duration-200 ${otpSecondsLeft <= 5 ? 'bg-amber-500' : 'bg-[var(--color-primary)]'}`}
+                            style={{ width: `${Math.max(0, Math.min(100, (otpSecondsLeft / OTP_VALIDITY_SECONDS) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
@@ -436,15 +503,18 @@ export function HospitalAdminLogin({ onSuccess, onBackToPublic }: HospitalAdminL
                       type="text"
                       maxLength={6}
                       value={securityToken}
-                      onChange={(e) => setSecurityToken(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => {
+                        setOtpRefreshedNotice(false);
+                        setSecurityToken(e.target.value.replace(/\D/g, ''));
+                      }}
                       className="w-full text-center tracking-[0.5em] text-2xl font-mono font-bold py-3.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] focus:border-[var(--color-primary)] outline-none text-[var(--color-ink)]"
-                      placeholder="894102"
+                      placeholder="••••••"
                       required
                       autoFocus
                     />
                     <div className="text-center pt-1">
                       <p className="text-[11px] text-[var(--color-muted)]">
-                        TOTP security code refreshes every 30 seconds via hospital authenticator
+                        TOTP security code refreshes automatically every {OTP_VALIDITY_SECONDS} seconds ({otpSecondsLeft}s left)
                       </p>
                     </div>
                   </div>
@@ -466,7 +536,12 @@ export function HospitalAdminLogin({ onSuccess, onBackToPublic }: HospitalAdminL
 
                     <button
                       type="button"
-                      onClick={() => setRequiresMfaStep(false)}
+                      onClick={() => {
+                        clearOtpChallenge(staffIdentifier);
+                        setSecurityToken('');
+                        setErrorMessage(null);
+                        setRequiresMfaStep(false);
+                      }}
                       className="w-full btn-outline py-2.5 text-xs font-semibold rounded-xl"
                     >
                       ← Back to Credential Entry

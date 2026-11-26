@@ -1,6 +1,7 @@
 import { db, storage, isFirebaseConfigured } from '../../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { validateUploadedFile, sanitizePlainText } from '../security/securityControls';
 
 export interface StoredClinicalFile {
   id: string;
@@ -165,10 +166,15 @@ export async function processClinicalFileUpload(
     onProgress?: (percent: number) => void;
   }
 ): Promise<StoredClinicalFile> {
+  const validation = await validateUploadedFile(file, { maxSizeMb: 15, allowPdf: true });
+  if (!validation.valid) {
+    throw new Error(validation.error || 'File upload failed security validation.');
+  }
+
   const onProgress = params.onProgress || (() => {});
   const fileId = `rep-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-  const title = (params.title || file.name.replace(/\.[^/.]+$/, '')).trim();
-  const reportType = params.reportType || 'Clinical Diagnostic';
+  const title = sanitizePlainText(params.title || file.name.replace(/\.[^/.]+$/, ''), 160);
+  const reportType = sanitizePlainText(params.reportType || 'Clinical Diagnostic', 80);
 
   // Step 1: Instant visual feedback - never stick at 0%
   onProgress(25);

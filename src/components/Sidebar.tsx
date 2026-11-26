@@ -49,7 +49,7 @@ export function Sidebar({ isOpen, setIsOpen, currentView, setView, role }: Sideb
 
   const menuItems = {
     admin: [
-      { id: 'admin-portal', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'admin-portal', label: 'Master Admin Portal', icon: LayoutDashboard },
       { id: 'admin-patients', label: 'Patients', icon: Users },
       { id: 'admin-doctors', label: 'Specialists', icon: UserCheck },
       { id: 'admin-departments', label: 'Departments', icon: Building2 },

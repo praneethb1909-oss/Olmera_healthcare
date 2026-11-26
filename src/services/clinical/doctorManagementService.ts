@@ -10,6 +10,14 @@
  * - Complete immutable audit history with timestamps
  */
 
+import {
+  checkRateLimit,
+  constantTimeEqual,
+  hashPasswordPBKDF2,
+  sanitizePlainText
+} from '../security/securityControls';
+import { auditLogger } from '../auth/auditLogger';
+
 export type DoctorHierarchyRole = 'senior_consultant' | 'junior_resident';
 
 export type SubmissionType =
@@ -425,19 +433,72 @@ export class DoctorManagementService {
     email: string,
     accessCode: string
   ): { success: boolean; doctor?: DoctorAccount; error?: string } {
-    const doctor = this.getDoctorByEmail(email);
+    const cleanEmail = sanitizePlainText(email, 254).toLowerCase();
+    const rate = checkRateLimit(`doctor_login:${cleanEmail}`, 5, 5 * 60 * 1000);
+    if (!rate.allowed) {
+      auditLogger.logEvent({
+        eventType: 'ACCOUNT_LOCKED',
+        status: 'blocked',
+        email: cleanEmail,
+        role: 'doctor',
+        details: `Doctor login rate limit exceeded. Retry in ${rate.retryAfterSeconds}s.`
+      });
+      return {
+        success: false,
+        error: `Too many login attempts. Please wait ${rate.retryAfterSeconds} seconds before retrying.`
+      };
+    }
+
+    const doctor = this.getDoctorByEmail(cleanEmail);
     if (!doctor) {
-      return { success: false, error: 'No registered doctor account found for this email.' };
+      auditLogger.logEvent({
+        eventType: 'AUTH_FAILURE',
+        status: 'failure',
+        email: cleanEmail,
+        role: 'doctor',
+        details: 'Doctor login attempted with unregistered email.'
+      });
+      return { success: false, error: 'Invalid credentials.' };
     }
     if (doctor.status !== 'active') {
+      auditLogger.logEvent({
+        eventType: 'ACCESS_DENIED',
+        status: 'blocked',
+        staffId: doctor.id,
+        email: doctor.email,
+        role: doctor.hierarchyRole,
+        details: 'Login blocked: Junior Doctor account is deactivated.'
+      });
       return {
         success: false,
         error: 'This Junior Doctor account has been deactivated by the supervising Senior Doctor.',
       };
     }
-    if (doctor.accessCode !== accessCode) {
+    if (!constantTimeEqual(doctor.accessCode, accessCode)) {
+      auditLogger.logEvent({
+        eventType: 'AUTH_FAILURE',
+        status: 'failure',
+        staffId: doctor.id,
+        email: doctor.email,
+        role: doctor.hierarchyRole,
+        details: 'Doctor login failed: invalid access code.'
+      });
       return { success: false, error: 'Invalid password / clinical access code.' };
     }
+
+    // Background PBKDF2 integrity hash computation (never logs plaintext)
+    hashPasswordPBKDF2(accessCode).catch(() => {});
+
+    auditLogger.logEvent({
+      eventType: 'AUTH_SUCCESS',
+      status: 'success',
+      staffId: doctor.id,
+      email: doctor.email,
+      role: doctor.hierarchyRole,
+      hospitalId: doctor.hospitalId,
+      hospitalName: doctor.hospitalName,
+      details: `${doctor.fullName} authenticated successfully.`
+    });
 
     const doctors = this.getDoctorsStore();
     const target = doctors.find(d => d.id === doctor.id);

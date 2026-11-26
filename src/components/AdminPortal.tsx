@@ -15,7 +15,7 @@ import {
   CreditCard, ExternalLink, MoreVertical, Building,
   Mail, User, XCircle, Cpu, Eye, ShieldAlert, Lock, Unlock,
   RefreshCw, Play, CheckCircle2, Clock, Database, Copy, CheckCheck,
-  TestTube2, Pill
+  TestTube2, Pill, LogOut
 } from 'lucide-react';
 import { MedicalBackground } from './MedicalBackground';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
@@ -30,12 +30,23 @@ import { AdminFollowUpCoordinator } from './clinical/AdminFollowUpCoordinator';
 import { AdminFHIRSuite } from './clinical/AdminFHIRSuite';
 import { DiagnosticLabPortal } from './clinical/DiagnosticLabPortal';
 import { PharmacyPartnerPortal } from './clinical/PharmacyPartnerPortal';
+import { MasterAdminCommandCenter } from './admin/MasterAdminCommandCenter';
+import { HospitalManagementConsole } from './admin/HospitalManagementConsole';
+import { masterAdminService } from '../services/admin/masterAdminService';
 
-type AdminTab = 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'hospitals' | 'reports' | 'files' | 'payments' | 'notifications' | 'audit' | 'follow-ups' | 'fhir' | 'lab' | 'pharmacy';
+type AdminTab = 'master-command' | 'dashboard' | 'doctors' | 'patients' | 'appointments' | 'hospitals' | 'reports' | 'files' | 'payments' | 'notifications' | 'audit' | 'follow-ups' | 'fhir' | 'lab' | 'pharmacy';
 
 export function AdminPortal() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+
+  // Promote master admins to the master command tab once the session/user has loaded.
+  useEffect(() => {
+    const sess = sessionManager.getActiveSession()?.user;
+    if (masterAdminService.isMasterAdmin({ email: sess?.email || user?.email || '', role: sess?.role })) {
+      setActiveTab('master-command');
+    }
+  }, [user]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -351,7 +362,7 @@ export function AdminPortal() {
               <Activity size={24} className="text-blue-600" />
               Recent System Activity
             </h3>
-            <button className="text-blue-600 font-bold text-xs hover:underline uppercase tracking-widest">System Audit Log</button>
+            <button onClick={() => setActiveTab('audit')} className="text-blue-600 font-bold text-xs hover:underline uppercase tracking-widest">System Audit Log</button>
           </div>
           <div className="space-y-4">
             {appointments.slice(0, 5).map((apt, i) => (
@@ -390,8 +401,8 @@ export function AdminPortal() {
                 <span className="bg-white/20 px-3 py-1 rounded-lg">{stats.activeHospitals} Active</span>
               </div>
               <div className="flex justify-between items-center text-sm font-bold">
-                <span>System Uptime</span>
-                <span className="text-emerald-300">99.98%</span>
+                <span>Security Posture</span>
+                <span className="text-emerald-300">{activeSession ? 'HIPAA Verified' : 'Authenticated'}</span>
               </div>
               <button 
                 onClick={() => setActiveTab('hospitals')}
@@ -452,7 +463,7 @@ export function AdminPortal() {
             </div>
             <div className="p-6 bg-slate-50/30 dark:bg-slate-800/30 space-y-3">
               <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                <Building size={14} /> {dr.hospital_name || 'Apollo Vizag'}
+                <Building size={14} /> {dr.hospital_name || 'Assigned Network Facility'}
               </div>
               <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
                 <Mail size={14} /> {maskEmail(dr.email)}
@@ -617,13 +628,21 @@ export function AdminPortal() {
           </div>
         </div>
         <div className="space-y-4">
-          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="font-black text-slate-900">System Maintenance: March 24</h4>
-              <span className="text-[10px] font-black text-slate-400 uppercase">2 days ago</span>
+          {auditLogs.length === 0 ? (
+            <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700 text-center text-xs text-slate-500">
+              No live system broadcasts or security alerts recorded yet.
             </div>
-            <p className="text-sm text-slate-600 font-medium">Scheduled maintenance for clinical nodes between 02:00 - 04:00 IST.</p>
-          </div>
+          ) : (
+            auditLogs.slice(0, 5).map((log) => (
+              <div key={log.id} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <div className="flex justify-between items-start mb-1.5">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm">{log.eventType.replace(/_/g, ' ')}</h4>
+                  <span className="text-[10px] font-mono text-slate-400">{new Date(log.timestamp).toLocaleString()}</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">{log.details}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
@@ -1233,6 +1252,10 @@ export function AdminPortal() {
 
         <nav className="space-y-2 flex-1">
           {[
+            ...(masterAdminService.isMasterAdmin({
+              email: activeSession?.user.email || user?.email || '',
+              role: activeSession?.user.role
+            }) ? [{ id: 'master-command', label: 'Master Command & Credits', icon: ShieldCheck }] : []),
             { id: 'dashboard', label: 'Command Center', icon: PieChart },
             { id: 'doctors', label: 'Practitioners', icon: Briefcase },
             { id: 'patients', label: 'Patient Registry', icon: Users },
@@ -1298,11 +1321,42 @@ export function AdminPortal() {
               </p>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await sessionManager.terminateSession('Administrator manually logged out of Admin Portal.');
+              await signOut();
+            }}
+            className="w-full min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] hover:bg-red-50 hover:border-red-200 hover:text-red-700 text-[var(--color-ink)] text-xs font-bold uppercase tracking-wider transition-colors"
+          >
+            <LogOut size={16} />
+            Log Out
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
       <main className="flex-1 p-8 lg:p-12 relative z-10 overflow-y-auto max-h-screen custom-scrollbar">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-[var(--color-line)]">
+          <div className="text-xs font-semibold text-[var(--color-muted)]">
+            Signed in as{' '}
+            <span className="text-[var(--color-ink)] font-bold">
+              {activeSession?.user.email || user?.email || 'Administrator'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await sessionManager.terminateSession('Administrator manually logged out of Admin Portal.');
+              await signOut();
+            }}
+            className="min-h-[44px] inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] hover:bg-red-50 hover:border-red-200 hover:text-red-700 text-[var(--color-ink)] text-xs font-bold uppercase tracking-wider transition-colors"
+          >
+            <LogOut size={15} />
+            Log Out
+          </button>
+        </div>
         {loading && activeTab === 'dashboard' ? (
           <div className="py-24 flex items-center justify-center">
             <MedicareWaveLoader 
@@ -1313,11 +1367,12 @@ export function AdminPortal() {
           </div>
         ) : (
           <>
+            {activeTab === 'master-command' && <MasterAdminCommandCenter />}
             {activeTab === 'dashboard' && renderDashboard()}
             {activeTab === 'doctors' && renderDoctors()}
             {activeTab === 'patients' && renderPatients()}
             {activeTab === 'appointments' && renderAppointments()}
-            {activeTab === 'hospitals' && renderHospitals()}
+            {activeTab === 'hospitals' && <HospitalManagementConsole />}
             {activeTab === 'files' && renderFiles()}
             {activeTab === 'payments' && renderPayments()}
             {activeTab === 'notifications' && renderNotifications()}
@@ -1330,7 +1385,7 @@ export function AdminPortal() {
         )}
         
         {/* Fallback for other tabs */}
-        {!['dashboard', 'doctors', 'patients', 'appointments', 'hospitals', 'files', 'payments', 'notifications', 'audit'].includes(activeTab) && (
+        {!['master-command', 'dashboard', 'doctors', 'patients', 'appointments', 'hospitals', 'files', 'payments', 'notifications', 'audit', 'follow-ups', 'fhir', 'lab', 'pharmacy'].includes(activeTab) && (
           <div className="card p-20 text-center bg-white/50 backdrop-blur-md">
             <div className="bg-blue-50 dark:bg-blue-900/20 w-20 h-20 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-blue-600">
               <Activity size={40} />

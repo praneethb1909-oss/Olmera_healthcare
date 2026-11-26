@@ -11,6 +11,10 @@ import logoMarkLight from '../../brand/assets/logo-mark-light-on-dark.svg';
 import logoMarkDark from '../../brand/assets/logo-mark-dark-on-light.svg';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
 import { doctorManagementService } from '../services/clinical/doctorManagementService';
+import { hospitalIdp } from '../services/auth/hospitalIdp';
+import { checkRateLimit, enforceServerAuthRateLimit, toSafeUserError } from '../services/security/securityControls';
+import { auditLogger } from '../services/auth/auditLogger';
+import { OTP_VALIDITY_SECONDS, issueLoginOtp, verifyLoginOtp, clearOtpChallenge } from '../services/auth/otpService';
 
 interface Hospital {
   id: string;
@@ -34,13 +38,15 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpExpiresAt, setOtpExpiresAt] = useState(0);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(OTP_VALIDITY_SECONDS);
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'patient' | 'doctor' | 'admin' | string>(initialRole);
   const [hospitalId, setHospitalId] = useState('');
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [error, setError] = useState<any>('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, loginAsDemo } = useAuth();
+  const { signIn, signUp, loginAsDemo, signInHospitalAdmin } = useAuth();
 
   useEffect(() => {
     if (!isLogin && role !== 'patient') {
@@ -53,24 +59,67 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
       const q = query(collection(db, 'hospitals'), orderBy('name'));
       const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name, city: doc.data().city }));
-      setHospitals(data || []);
-      if (data && data.length > 0) {
-        setHospitalId(data[0].id);
+      const resolved = data.length > 0
+        ? data
+        : hospitalIdp.getHospitals().map(h => ({ id: h.id, name: h.name, city: h.city }));
+      setHospitals(resolved);
+      if (resolved.length > 0 && !hospitalId) {
+        setHospitalId(resolved[0].id);
       }
     } catch (err) {
       console.error('Error loading hospitals:', err);
+      const fallback = hospitalIdp.getHospitals().map(h => ({ id: h.id, name: h.name, city: h.city }));
+      setHospitals(fallback);
+      if (fallback.length > 0 && !hospitalId) {
+        setHospitalId(fallback[0].id);
+      }
     }
   };
 
-  const generateRandomOtp = () => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-    return code;
+  const generateRandomOtp = (clearInputs = false) => {
+    const idKey = email.trim().toLowerCase() || 'pending-user';
+    const issued = issueLoginOtp(idKey, OTP_VALIDITY_SECONDS);
+    setGeneratedOtp(issued.code);
+    setOtpExpiresAt(issued.expiresAt);
+    setOtpSecondsLeft(OTP_VALIDITY_SECONDS);
+    if (clearInputs) {
+      setOtp(['', '', '', '', '', '']);
+    }
+    return issued.code;
   };
+
+  useEffect(() => {
+    if (authStep !== 'otp' || !otpExpiresAt) return;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((otpExpiresAt - Date.now()) / 1000));
+      setOtpSecondsLeft(remaining);
+      if (remaining <= 0) {
+        generateRandomOtp(true);
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [authStep, otpExpiresAt, email]);
 
   const handleInitialSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const rate = checkRateLimit(`auth_init:${email.trim().toLowerCase()}`, 8, 5 * 60 * 1000);
+    if (!rate.allowed) {
+      auditLogger.logEvent({
+        eventType: 'ACCOUNT_LOCKED',
+        status: 'blocked',
+        email: email.trim().toLowerCase(),
+        role,
+        details: 'Rate limit exceeded on initial sign-in.'
+      });
+      setError(`Too many attempts. Please wait ${rate.retryAfterSeconds}s and try again.`);
+      return;
+    }
+    const serverRate = await enforceServerAuthRateLimit('login', email.trim().toLowerCase());
+    if (!serverRate.allowed) {
+      setError(serverRate.error || 'Too many login attempts. Please wait before retrying.');
+      return;
+    }
     generateRandomOtp();
     setAuthStep('otp');
   };
@@ -80,14 +129,66 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
     setLoading(true);
     setError('');
 
-    const enteredOtp = otp.join('');
-    if (enteredOtp !== generatedOtp) {
-      setError(`Invalid verification code. Please enter ${generatedOtp}.`);
+    const serverOtpRate = await enforceServerAuthRateLimit('otp', email.trim().toLowerCase());
+    if (!serverOtpRate.allowed) {
+      setError(serverOtpRate.error || 'Too many OTP verification attempts. Please wait before retrying.');
       setLoading(false);
       return;
     }
 
+    const otpRate = checkRateLimit(`auth_otp:${email.trim().toLowerCase()}`, 5, 5 * 60 * 1000);
+    if (!otpRate.allowed) {
+      setError(`Too many verification attempts. Retry in ${otpRate.retryAfterSeconds}s.`);
+      setLoading(false);
+      return;
+    }
+
+    const enteredOtp = otp.join('');
+    // For admin login via Auth.tsx, hospitalIdp.authenticate() consumes & verifies the OTP challenge
+    // inside verifyLoginOtp; for patient/doctor flows, verifyLoginOtp validates and consumes it here.
+    if (!(isLogin && role === 'admin')) {
+      const otpCheck = verifyLoginOtp(email.trim().toLowerCase() || 'pending-user', enteredOtp);
+      if (!otpCheck.valid) {
+        auditLogger.logEvent({
+          eventType: 'AUTH_FAILURE',
+          status: 'failure',
+          email: email.trim().toLowerCase(),
+          role,
+          details: otpCheck.expired
+            ? 'Expired 6-digit MFA verification code entered.'
+            : 'Invalid 6-digit MFA verification code entered.'
+        });
+        setError(otpCheck.reason || 'Invalid verification code. Please check the 6-digit code and try again.');
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
+      // Authenticate Master Admin / Hospital Admin via Hospital IdP
+      if (isLogin && role === 'admin') {
+        if (!hospitalId) {
+          setError('Please select your accredited hospital facility.');
+          setAuthStep('initial');
+          setLoading(false);
+          return;
+        }
+        const idpRes = await hospitalIdp.authenticate({
+          hospitalId,
+          staffIdOrEmail: email.trim(),
+          password,
+          securityToken: enteredOtp
+        });
+        if (!idpRes.success || !idpRes.user || !idpRes.sessionToken) {
+          setError(idpRes.error || 'Access Denied: Master Admin or verified hospital staff credentials required.');
+          setAuthStep('initial');
+          setLoading(false);
+          return;
+        }
+        signInHospitalAdmin(idpRes.user, idpRes.sessionToken);
+        return;
+      }
+
       // Check individual Senior / Junior Doctor login credentials when signing in as doctor
       if (isLogin && role === 'doctor') {
         const registeredDoc = doctorManagementService.getDoctorByEmail(email);
@@ -128,7 +229,7 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
         );
         return;
       }
-      let friendlyError = err.message || 'An error occurred';
+      let friendlyError = toSafeUserError(err, 'Authentication failed. Please check your credentials.');
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
         friendlyError = 'Invalid credentials. Please verify your email and password.';
       }
@@ -188,6 +289,20 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
               >
                 Verification Passcode: {generatedOtp}
               </button>
+              <div className="max-w-xs mx-auto pt-2 space-y-1">
+                <div className="flex items-center justify-between text-[11px] font-ui">
+                  <span className="text-[var(--color-muted)]">Auto-refreshes every {OTP_VALIDITY_SECONDS}s</span>
+                  <span className={otpSecondsLeft <= 5 ? 'text-amber-600 font-semibold font-mono' : 'text-[var(--color-primary)] font-semibold font-mono'}>
+                    {otpSecondsLeft}s left
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-[var(--color-surface)] rounded-full overflow-hidden border border-[var(--color-line)]">
+                  <div
+                    className={`h-full transition-all duration-200 ${otpSecondsLeft <= 5 ? 'bg-amber-500' : 'bg-[var(--color-primary)]'}`}
+                    style={{ width: `${Math.max(0, Math.min(100, (otpSecondsLeft / OTP_VALIDITY_SECONDS) * 100))}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-between gap-2 my-4">
@@ -231,7 +346,11 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
             <div className="text-center pt-2">
               <button 
                 type="button"
-                onClick={() => setAuthStep('initial')}
+                onClick={() => {
+                  clearOtpChallenge(email.trim().toLowerCase() || 'pending-user');
+                  setOtp(['', '', '', '', '', '']);
+                  setAuthStep('initial');
+                }}
                 className="text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors font-ui"
               >
                 ← Back to credentials
@@ -362,6 +481,27 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {isLogin && role === 'admin' && (
+              <div className="space-y-1.5">
+                <label htmlFor="loginHospital" className="text-xs font-semibold text-[var(--color-muted)] font-ui">Network Hospital</label>
+                <div className="relative">
+                  <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={18} />
+                  <select
+                    id="loginHospital"
+                    value={hospitalId}
+                    onChange={(e) => setHospitalId(e.target.value)}
+                    className="input-field pl-10"
+                    required
+                  >
+                    <option value="">Select Clinical Facility</option>
+                    {hospitals.map((h) => (
+                      <option key={h.id} value={h.id}>{h.name} — {h.city}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
 
@@ -508,14 +648,14 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
             {renderAuthStep()}
 
             {authStep === 'initial' && (
-              <div className="mt-6 text-center">
+              <div className="mt-6 space-y-3 text-center">
                 <button
                   onClick={() => {
                     setIsLogin(!isLogin);
                     setError('');
                     setRole('patient');
                   }}
-                  className="text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors font-ui"
+                  className="text-xs text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors font-ui block w-full"
                 >
                   {isLogin ? (
                     <>New to Olmera? <span className="font-semibold text-[var(--color-primary)] hover:underline">Create an account</span></>
@@ -523,6 +663,20 @@ export function Auth({ onBack, initialRole = 'patient', onSwitchToHospitalAdmin 
                     <>Already registered? <span className="font-semibold text-[var(--color-primary)] hover:underline">Sign in</span></>
                   )}
                 </button>
+
+                {onSwitchToHospitalAdmin && (
+                  <div className="pt-3 border-t border-[var(--color-line)]">
+                    <button
+                      type="button"
+                      onClick={onSwitchToHospitalAdmin}
+                      className="w-full py-2.5 px-4 rounded-xl border border-[var(--color-line)] hover:border-[var(--color-primary)] bg-[var(--color-surface-subtle)] text-xs font-semibold text-[var(--color-ink)] hover:text-[var(--color-primary)] transition-all inline-flex items-center justify-center gap-2 min-h-[44px]"
+                    >
+                      <ShieldCheck size={15} className="text-[var(--color-primary)]" />
+                      <span>Master Admin Portal</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

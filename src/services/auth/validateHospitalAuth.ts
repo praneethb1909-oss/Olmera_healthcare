@@ -29,10 +29,26 @@ export interface HospitalAuthTestSuiteReport {
 }
 
 export async function runHospitalAuthValidationSuite(): Promise<HospitalAuthTestSuiteReport> {
+  await hospitalIdp.initialize();
+
+  // Run inside an isolated sandbox: credential fixtures (ephemeral passwords, induced
+  // lockouts) must never be persisted to Firestore or leak into the live session, which
+  // previously overwrote the production password for OCH-ADM-01 on every run.
+  const endIsolatedRun = hospitalIdp.startIsolatedRun();
+  try {
+    return await executeHospitalAuthValidationSuite();
+  } finally {
+    endIsolatedRun();
+  }
+}
+
+async function executeHospitalAuthValidationSuite(): Promise<HospitalAuthTestSuiteReport> {
   const results: TestResultItem[] = [];
   const startAll = Date.now();
 
   await hospitalIdp.initialize();
+  const ephemeralTestPass = `TestSec#${Date.now().toString(36)}!A1`;
+  await hospitalIdp.bootstrapStaffCredential('OCH-ADM-01', ephemeralTestPass);
 
   // Test 1: Valid Hospital Credentials Authenticate Successfully
   const t1Start = Date.now();
@@ -40,7 +56,7 @@ export async function runHospitalAuthValidationSuite(): Promise<HospitalAuthTest
     const res = await hospitalIdp.authenticate({
       hospitalId: 'hosp-1',
       staffIdOrEmail: 'OCH-ADM-01',
-      password: 'ClinicSecure@2026!',
+      password: ephemeralTestPass,
       securityToken: '894102'
     });
 
@@ -70,7 +86,7 @@ export async function runHospitalAuthValidationSuite(): Promise<HospitalAuthTest
     const res = await hospitalIdp.authenticate({
       hospitalId: 'hosp-1',
       staffIdOrEmail: 'unauthorized_guest@gmail.com',
-      password: 'ClinicSecure@2026!'
+      password: ephemeralTestPass
     });
 
     const passed = Boolean(res.success === false && res.error?.includes('Unrecognized hospital staff credentials'));
@@ -100,7 +116,7 @@ export async function runHospitalAuthValidationSuite(): Promise<HospitalAuthTest
     const res = await hospitalIdp.authenticate({
       hospitalId: 'hosp-1', // Rajam
       staffIdOrEmail: 'OAMI-DIR-01', // Vizag staff member
-      password: 'ClinicSecure@2026!'
+      password: ephemeralTestPass
     });
 
     const passed = Boolean(res.success === false && (res.error?.includes('Mismatch') || res.error?.includes('registered with')));
