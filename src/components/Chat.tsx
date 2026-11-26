@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, addDoc, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, addDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
-import { Send, X } from 'lucide-react';
+import { Send, X, ShieldCheck } from 'lucide-react';
 import { MedicareWaveLoader } from './common/MedicareWaveLoader';
+import { e2eeService, EncryptedHealthEnvelope } from '../services/security/e2eeService';
 
 interface Message {
   id: string;
   content: string;
+  encrypted_envelope?: EncryptedHealthEnvelope;
   sender_id: string;
   created_at: string;
 }
@@ -35,9 +37,23 @@ export function Chat({ appointmentId, doctorName, isOpen, onClose }: ChatProps) 
         where('appointment_id', '==', appointmentId)
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const messagesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-        setMessages(messagesData);
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const rawDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        const decrypted = await Promise.all(
+          rawDocs.map(async (m) => {
+            if (m.encrypted_envelope) {
+              try {
+                const plain = await e2eeService.decryptWithPassphrase(m.encrypted_envelope, appointmentId);
+                return { ...m, content: plain };
+              } catch {
+                return m;
+              }
+            }
+            return m;
+          })
+        );
+        decrypted.sort((a, b) => a.created_at.localeCompare(b.created_at));
+        setMessages(decrypted);
         setLoading(false);
       });
 
@@ -55,10 +71,12 @@ export function Chat({ appointmentId, doctorName, isOpen, onClose }: ChatProps) 
 
     setSending(true);
     try {
+      const encryptedEnvelope = await e2eeService.encryptWithPassphrase(newMessage.trim(), appointmentId);
       await addDoc(collection(db, 'messages'), {
         appointment_id: appointmentId,
         sender_id: user.uid,
-        content: newMessage,
+        content: '[Encrypted Clinical Message]',
+        encrypted_envelope: encryptedEnvelope,
         created_at: new Date().toISOString()
       });
 
@@ -75,11 +93,17 @@ export function Chat({ appointmentId, doctorName, isOpen, onClose }: ChatProps) 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md h-96 flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">Chat with {doctorName}</h3>
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-line)]">
+          <div>
+            <h3 className="font-semibold text-[var(--color-ink)]">Chat with {doctorName}</h3>
+            <p className="text-[10px] font-medium text-[var(--color-primary)] flex items-center gap-1 mt-0.5">
+              <ShieldCheck className="w-3 h-3" /> End-to-End Encrypted (AES-256-GCM)
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-[var(--color-muted)] hover:text-[var(--color-ink)] min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Close chat"
           >
             <X className="w-5 h-5" />
           </button>

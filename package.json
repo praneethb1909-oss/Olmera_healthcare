@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test": "tsx src/services/tests/runClinicalTests.ts && tsx src/services/tests/runLocationTests.ts && tsx src/services/tests/runSecurityTests.ts && tsx src/services/tests/runMasterAdminTests.ts",
+    "test": "tsx src/services/tests/runClinicalTests.ts && tsx src/services/tests/runLocationTests.ts && tsx src/services/tests/runSecurityTests.ts && tsx src/services/tests/runMasterAdminTests.ts && tsx src/services/tests/runMobileAndE2EETests.ts",
+    "test:mobile": "tsx src/services/tests/runMobileAndE2EETests.ts",
     "test:master-admin": "tsx src/services/tests/runMasterAdminTests.ts",
     "test:security": "tsx src/services/tests/runSecurityTests.ts",
     "test:location": "tsx src/services/tests/runLocationTests.ts",
@@ -20,14 +21,18 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "static": "vite build",
     "android:sync": "npm run build && npx cap sync android",
-    "android:open": "npx cap open android"
+    "android:open": "npx cap open android",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "npx cap open ios",
+    "mobile:sync": "npm run build && npx cap sync"
   },
   "dependencies": {
-    "@capacitor/android": "^8.1.0",
+    "@capacitor/android": "^8.6.3",
     "@capacitor/app": "^8.0.1",
-    "@capacitor/cli": "^8.1.0",
-    "@capacitor/core": "^8.1.0",
+    "@capacitor/cli": "^8.6.3",
+    "@capacitor/core": "^8.6.3",
     "@capacitor/haptics": "^8.0.1",
+    "@capacitor/ios": "^8.6.3",
     "@capacitor/keyboard": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
     "dotenv": "^17.3.1",
